@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Record Audio and Upload to Google Drive</title>
+    <style>
+        #status {
+            display: none;
+            margin-top: 10px;
+        }
+        #microphone-icon {
+            display: none;
+            font-size: 24px;
+            margin-left: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Record Audio and Upload to Google Drive</h1>
+    <button id="recordButton">Start Recording</button>
+    <span id="status">Recording <span id="microphone-icon">🎤</span></span>
+
+    <!-- Add the Google API script -->
+    <script src="https://apis.google.com/js/api.js"></script>
+
+    <script>
+        let isRecording = false;
+        let mediaRecorder;
+        let audioChunks = [];
+        const recordButton = document.getElementById('recordButton');
+        const status = document.getElementById('status');
+        const microphoneIcon = document.getElementById('microphone-icon');
+
+        recordButton.addEventListener('click', () => {
+            if (isRecording) {
+                stopRecording();
+            } else {
+                startRecording();
+            }
+        });
+
+        function startRecording() {
+            navigator.mediaDevices.getUserMedia({ audio: true })
+                .then(stream => {
+                    mediaRecorder = new MediaRecorder(stream);
+                    mediaRecorder.start();
+
+                    mediaRecorder.addEventListener('dataavailable', event => {
+                        audioChunks.push(event.data);
+                    });
+
+                    mediaRecorder.addEventListener('stop', () => {
+                        const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                        audioChunks = [];
+                        uploadToGoogleDrive(audioBlob);
+                    });
+
+                    isRecording = true;
+                    recordButton.textContent = 'Stop Recording';
+                    status.style.display = 'inline';
+                    microphoneIcon.style.display = 'inline';
+                });
+        }
+
+        function stopRecording() {
+            mediaRecorder.stop();
+            isRecording = false;
+            recordButton.textContent = 'Start Recording';
+            status.style.display = 'none';
+            microphoneIcon.style.display = 'none';
+        }
+
+        function uploadToGoogleDrive(blob) {
+            const reader = new FileReader();
+            reader.readAsDataURL(blob);
+            reader.onloadend = () => {
+                const base64data = reader.result.split(',')[1];
+                
+                gapi.load('client:auth2', () => {
+                    gapi.auth2.init({ client_id: '305229200010-tb2rufv2s4cqstbevq3n8co4rl5h8nfn.apps.googleusercontent.com' }).then(() => { // Replace YOUR_CLIENT_ID with your actual Client ID
+                        gapi.auth2.getAuthInstance().signIn().then(() => {
+                            gapi.client.load('drive', 'v3', () => {
+                                const fileMetadata = {
+                                    'name': 'recording.wav',
+                                    'parents': ['1OLSxqrewxO-F4YI3PED-K0UMYaGhrXXd']
+                                };
+                                const media = {
+                                    mimeType: 'audio/wav',
+                                    body: new Blob([new Uint8Array(atob(base64data).split("").map((char) => char.charCodeAt(0)))])
+                                };
+                                gapi.client.drive.files.create({
+                                    resource: fileMetadata,
+                                    media: media,
+                                    fields: 'id'
+                                }).then((response) => {
+                                    console.log('File uploaded successfully, ID: ', response.result.id);
+                                }, (error) => {
+                                    console.error('Error uploading file: ', error);
+                                });
+                            });
+                        });
+                    });
+                });
+            };
+        }
+    </script>
+</body>
+</html>
