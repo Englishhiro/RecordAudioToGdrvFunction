@@ -74,7 +74,7 @@
 
         function handleAuthClick(blob) {
             google.accounts.id.initialize({
-                client_id: '305229200010-tb2rufv2s4cqstbevq3n8co4rl5h8nfn.apps.googleusercontent.com', // Replace YOUR_CLIENT_ID with your actual Client ID
+                client_id: '305229200010-tb2rufv2s4cqstbevq3n8co4rl5h8nfn.apps.googleusercontent.com',
                 callback: (response) => {
                     uploadToGoogleDrive(blob, response.credential);
                 }
@@ -90,12 +90,12 @@
                 const base64data = reader.result.split(',')[1];
 
                 // Initialize the Google API client
-                gapi.load('client', () => {
+                gapi.load('client:auth2', () => {
                     gapi.client.init({
-                        apiKey: 'AIzaSyBPn9zs5JdmEvQ5tUmG0azSLL_R590W-MI', // Add your API key here if needed
+                        apiKey: 'AIzaSyBPn9zs5JdmEvQ5tUmG0azSLL_R590W-MI',
                         discoveryDocs: ["https://www.googleapis.com/discovery/v1/apis/drive/v3/rest"]
                     }).then(() => {
-                        gapi.client.setToken({ access_token: token });
+                        gapi.auth2.getAuthInstance().setToken({ access_token: token });
                         const fileMetadata = {
                             'name': 'recording.wav',
                             'parents': ['1OLSxqrewxO-F4YI3PED-K0UMYaGhrXXd']
