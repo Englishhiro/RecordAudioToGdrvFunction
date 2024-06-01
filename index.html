@@ -95,24 +95,31 @@
                         apiKey: 'AIzaSyBPn9zs5JdmEvQ5tUmG0azSLL_R590W-MI',
                         discoveryDocs: ["https://www.googleapis.com/discovery/v1/apis/drive/v3/rest"]
                     }).then(() => {
-                        gapi.auth2.getAuthInstance().setToken({ access_token: token });
-                        const fileMetadata = {
-                            'name': 'recording.wav',
-                            'parents': ['1OLSxqrewxO-F4YI3PED-K0UMYaGhrXXd'] // Replace with your folder ID
-                        };
-                        const media = {
-                            mimeType: 'audio/wav',
-                            body: new Blob([new Uint8Array(atob(base64data).split("").map((char) => char.charCodeAt(0)))])
-                        };
-                        gapi.client.drive.files.create({
-                            resource: fileMetadata,
-                            media: media,
-                            fields: 'id'
-                        }).then((response) => {
-                            console.log('File uploaded successfully, ID: ', response.result.id);
-                        }, (error) => {
-                            console.error('Error uploading file: ', error);
-                        });
+                        // Ensure the auth instance is available
+                        if (gapi.auth2.getAuthInstance()) {
+                            gapi.auth2.getAuthInstance().setToken({ access_token: token });
+                            const fileMetadata = {
+                                'name': 'recording.wav',
+                                'parents': ['1OLSxqrewxO-F4YI3PED-K0UMYaGhrXXd'] // Replace with your folder ID
+                            };
+                            const media = {
+                                mimeType: 'audio/wav',
+                                body: new Blob([new Uint8Array(atob(base64data).split("").map((char) => char.charCodeAt(0)))])
+                            };
+                            gapi.client.drive.files.create({
+                                resource: fileMetadata,
+                                media: media,
+                                fields: 'id'
+                            }).then((response) => {
+                                console.log('File uploaded successfully, ID: ', response.result.id);
+                            }, (error) => {
+                                console.error('Error uploading file: ', error);
+                            });
+                        } else {
+                            console.error('Auth instance not initialized.');
+                        }
+                    }).catch((error) => {
+                        console.error('Error initializing Google API client: ', error);
                     });
                 });
             };
