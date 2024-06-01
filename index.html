@@ -22,6 +22,8 @@
 
     <!-- New GIS script -->
     <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <!-- Google API Client Library -->
+    <script src="https://apis.google.com/js/api.js"></script>
 
     <script>
         let isRecording = false;
@@ -87,9 +89,13 @@
             reader.onloadend = () => {
                 const base64data = reader.result.split(',')[1];
 
+                // Initialize the Google API client
                 gapi.load('client', () => {
-                    gapi.client.setToken({ access_token: token });
-                    gapi.client.load('drive', 'v3', () => {
+                    gapi.client.init({
+                        apiKey: 'AIzaSyBPn9zs5JdmEvQ5tUmG0azSLL_R590W-MI', // Add your API key here if needed
+                        discoveryDocs: ["https://www.googleapis.com/discovery/v1/apis/drive/v3/rest"]
+                    }).then(() => {
+                        gapi.client.setToken({ access_token: token });
                         const fileMetadata = {
                             'name': 'recording.wav',
                             'parents': ['1OLSxqrewxO-F4YI3PED-K0UMYaGhrXXd']
