@@ -20,8 +20,8 @@
     <button id="recordButton">Start Recording</button>
     <span id="status">Recording <span id="microphone-icon">🎤</span></span>
 
-    <!-- Add the Google API script -->
-    <script src="https://apis.google.com/js/api.js"></script>
+    <!-- New GIS script -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
 
     <script>
         let isRecording = false;
@@ -52,7 +52,7 @@
                     mediaRecorder.addEventListener('stop', () => {
                         const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
                         audioChunks = [];
-                        uploadToGoogleDrive(audioBlob);
+                        handleAuthClick(audioBlob);
                     });
 
                     isRecording = true;
@@ -70,34 +70,42 @@
             microphoneIcon.style.display = 'none';
         }
 
-        function uploadToGoogleDrive(blob) {
+        function handleAuthClick(blob) {
+            google.accounts.id.initialize({
+                client_id: '305229200010-tb2rufv2s4cqstbevq3n8co4rl5h8nfn.apps.googleusercontent.com', // Replace YOUR_CLIENT_ID with your actual Client ID
+                callback: (response) => {
+                    uploadToGoogleDrive(blob, response.credential);
+                }
+            });
+
+            google.accounts.id.prompt(); // Display the One Tap UI
+        }
+
+        function uploadToGoogleDrive(blob, token) {
             const reader = new FileReader();
             reader.readAsDataURL(blob);
             reader.onloadend = () => {
                 const base64data = reader.result.split(',')[1];
-                
-                gapi.load('client:auth2', () => {
-                    gapi.auth2.init({ client_id: '305229200010-tb2rufv2s4cqstbevq3n8co4rl5h8nfn.apps.googleusercontent.com' }).then(() => { // Replace YOUR_CLIENT_ID with your actual Client ID
-                        gapi.auth2.getAuthInstance().signIn().then(() => {
-                            gapi.client.load('drive', 'v3', () => {
-                                const fileMetadata = {
-                                    'name': 'recording.wav',
-                                    'parents': ['1OLSxqrewxO-F4YI3PED-K0UMYaGhrXXd']
-                                };
-                                const media = {
-                                    mimeType: 'audio/wav',
-                                    body: new Blob([new Uint8Array(atob(base64data).split("").map((char) => char.charCodeAt(0)))])
-                                };
-                                gapi.client.drive.files.create({
-                                    resource: fileMetadata,
-                                    media: media,
-                                    fields: 'id'
-                                }).then((response) => {
-                                    console.log('File uploaded successfully, ID: ', response.result.id);
-                                }, (error) => {
-                                    console.error('Error uploading file: ', error);
-                                });
-                            });
+
+                gapi.load('client', () => {
+                    gapi.client.setToken({ access_token: token });
+                    gapi.client.load('drive', 'v3', () => {
+                        const fileMetadata = {
+                            'name': 'recording.wav',
+                            'parents': ['1OLSxqrewxO-F4YI3PED-K0UMYaGhrXXd']
+                        };
+                        const media = {
+                            mimeType: 'audio/wav',
+                            body: new Blob([new Uint8Array(atob(base64data).split("").map((char) => char.charCodeAt(0)))])
+                        };
+                        gapi.client.drive.files.create({
+                            resource: fileMetadata,
+                            media: media,
+                            fields: 'id'
+                        }).then((response) => {
+                            console.log('File uploaded successfully, ID: ', response.result.id);
+                        }, (error) => {
+                            console.error('Error uploading file: ', error);
                         });
                     });
                 });
