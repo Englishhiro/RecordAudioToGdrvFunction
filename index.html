@@ -91,12 +91,14 @@
 
                 // Initialize the Google API client
                 gapi.load('client:auth2', () => {
-                    gapi.client.init({
-                        apiKey: 'AIzaSyBPn9zs5JdmEvQ5tUmG0azSLL_R590W-MI',
-                        discoveryDocs: ["https://www.googleapis.com/discovery/v1/apis/drive/v3/rest"]
+                    gapi.auth2.init({
+                        client_id: '305229200010-tb2rufv2s4cqstbevq3n8co4rl5h8nfn.apps.googleusercontent.com'
                     }).then(() => {
-                        // Ensure the auth instance is available
-                        gapi.auth2.init().then(() => {
+                        gapi.client.init({
+                            apiKey: 'AIzaSyBPn9zs5JdmEvQ5tUmG0azSLL_R590W-MI',
+                            discoveryDocs: ["https://www.googleapis.com/discovery/v1/apis/drive/v3/rest"]
+                        }).then(() => {
+                            // Ensure the auth instance is available
                             const authInstance = gapi.auth2.getAuthInstance();
                             if (authInstance) {
                                 authInstance.currentUser.get().reloadAuthResponse().then(authResponse => {
@@ -123,10 +125,10 @@
                                 console.error('Auth instance not initialized.');
                             }
                         }).catch((error) => {
-                            console.error('Error initializing Google Auth2: ', error);
+                            console.error('Error initializing Google API client: ', error);
                         });
                     }).catch((error) => {
-                        console.error('Error initializing Google API client: ', error);
+                        console.error('Error initializing Google Auth2: ', error);
                     });
                 });
             };
