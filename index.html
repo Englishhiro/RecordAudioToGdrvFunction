@@ -25,6 +25,17 @@
             opacity: 0.5;
             pointer-events: none;
         }
+        #warning {
+            display: none;
+            background: #f8d7da;
+            color: #721c24;
+            padding: 10px;
+            border: 1px solid #f5c6cb;
+            margin-top: 20px;
+        }
+        #warning button {
+            margin-left: 10px;
+        }
     </style>
 </head>
 <body>
@@ -34,10 +45,16 @@
     <div id="transcription"></div>
 
     <h2>Official Recording</h2>
-    <h2>Inform user how many tries to officially record left</h2>
+    <h2>Tries left for official recording: <span id="triesLeft">5</span></h2>
     <button id="officialRecordButton" class="disabled">Start Official Recording</button>
     <div id="officialStatus"></div>
     <div id="officialTranscription"></div>
+
+    <div id="warning">
+        Recording is still in progress. Do you want to continue?
+        <button id="yesButton">Yes</button>
+        <button id="noButton">No</button>
+    </div>
 
     <script>
         const recordButton = document.getElementById('recordButton');
@@ -46,12 +63,18 @@
         const transcription = document.getElementById('transcription');
         const officialStatus = document.getElementById('officialStatus');
         const officialTranscription = document.getElementById('officialTranscription');
-        const triesLeftDisplay = document.querySelector("h2:nth-of-type(3)");
+        const triesLeftDisplay = document.getElementById('triesLeft');
+        const warning = document.getElementById('warning');
+        const yesButton = document.getElementById('yesButton');
+        const noButton = document.getElementById('noButton');
+
         let isRecording = false;
         let isOfficialRecording = false;
         let recognition;
         let officialRecordingTries = 5;
         let clearTimeoutId;
+        let warningTimeoutId;
+        let isWarningDisplayed = false;
 
         if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -136,7 +159,7 @@
 
         function updateTriesLeft() {
             officialRecordingTries--;
-            triesLeftDisplay.textContent = `Tries left for official recording: ${officialRecordingTries}`;
+            triesLeftDisplay.textContent = officialRecordingTries;
             if (officialRecordingTries <= 0) {
                 officialRecordButton.classList.add('disabled');
             }
@@ -146,6 +169,58 @@
             transcription.innerText = '';
             officialTranscription.innerText = '';
         }
+
+        function checkButtonVisibility() {
+            const recordButtonRect = recordButton.getBoundingClientRect();
+            const officialRecordButtonRect = officialRecordButton.getBoundingClientRect();
+            const isRecordButtonVisible = recordButtonRect.top < window.innerHeight && recordButtonRect.bottom >= 0;
+            const isOfficialRecordButtonVisible = officialRecordButtonRect.top < window.innerHeight && officialRecordButtonRect.bottom >= 0;
+            return isRecordButtonVisible || isOfficialRecordButtonVisible;
+        }
+
+        function handleScroll() {
+            clearTimeout(warningTimeoutId);
+            if (isRecording || isOfficialRecording) {
+                warningTimeoutId = setTimeout(() => {
+                    if (!checkButtonVisibility() && !isWarningDisplayed) {
+                        showWarning();
+                    }
+                }, 30000);
+            }
+        }
+
+        function showWarning() {
+            isWarningDisplayed = true;
+            warning.style.display = 'block';
+        }
+
+        function hideWarning() {
+            isWarningDisplayed = false;
+            warning.style.display = 'none';
+        }
+
+        yesButton.addEventListener('click', () => {
+            hideWarning();
+            handleScroll();
+        });
+
+        noButton.addEventListener('click', () => {
+            hideWarning();
+            if (isRecording) {
+                recognition.stop();
+                isRecording = false;
+                recordButton.textContent = 'Start Trial Recording';
+                officialRecordButton.classList.remove('disabled');
+            }
+            if (isOfficialRecording) {
+                recognition.stop();
+                isOfficialRecording = false;
+                officialRecordButton.textContent = 'Start Official Recording';
+                recordButton.classList.remove('disabled');
+            }
+        });
+
+        window.addEventListener('scroll', handleScroll);
 
         // Initialize the tries left display
         updateTriesLeft();
