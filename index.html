@@ -69,11 +69,26 @@
             alert('Speech Recognition API is not supported in this browser.');
         }
 
-        recordButton.addEventListener('click', () => {
+        async function isMicrophoneInUse() {
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            for (let device of devices) {
+                if (device.kind === 'audioinput' && device.deviceId) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        recordButton.addEventListener('click', async () => {
+            if (await isMicrophoneInUse() && !isRecording) {
+                alert('Microphone is in use!');
+                return;
+            }
+
             if (isRecording) {
                 recognition.stop();
                 isRecording = false;
-                recordButton.textContent = 'Start Recording';
+                recordButton.textContent = 'Start Trial Recording';
             } else {
                 recognition.start();
                 isRecording = true;
