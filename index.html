@@ -87,6 +87,9 @@
 
             recognition.onerror = function(event) {
                 console.error(event.error);
+                if (event.error === 'no-speech' || event.error === 'audio-capture') {
+                    stopRecording();
+                }
             };
 
             recognition.onend = function() {
@@ -104,40 +107,49 @@
 
         recordButton.addEventListener('click', () => {
             if (isRecording) {
-                recognition.stop();
-                isRecording = false;
-                recordButton.textContent = 'Start Trial Recording';
-                officialRecordButton.classList.remove('disabled');
+                stopRecording();
             } else {
-                recognition.start();
-                isRecording = true;
-                recordButton.textContent = 'Stop Trial Recording';
-                officialRecordButton.classList.add('disabled');
-                clearTimeout(clearTimeoutId);
-                resetNoSpeechTimeout();
+                startRecording(false);
             }
         });
 
         officialRecordButton.addEventListener('click', () => {
             if (!officialRecordButton.classList.contains('disabled')) {
                 if (isOfficialRecording) {
-                    recognition.stop();
-                    isOfficialRecording = false;
-                    officialRecordButton.textContent = 'Start Official Recording';
-                    recordButton.classList.remove('disabled');
+                    stopRecording();
                     updateTriesLeft();
                 } else {
                     if (officialRecordingTries > 0) {
-                        recognition.start();
-                        isOfficialRecording = true;
-                        officialRecordButton.textContent = 'Stop Official Recording';
-                        recordButton.classList.add('disabled');
-                        clearTimeout(clearTimeoutId);
-                        resetNoSpeechTimeout();
+                        startRecording(true);
                     }
                 }
             }
         });
+
+        function startRecording(isOfficial) {
+            recognition.start();
+            if (isOfficial) {
+                isOfficialRecording = true;
+                officialRecordButton.textContent = 'Stop Official Recording';
+                recordButton.classList.add('disabled');
+            } else {
+                isRecording = true;
+                recordButton.textContent = 'Stop Trial Recording';
+                officialRecordButton.classList.add('disabled');
+            }
+            clearTimeout(clearTimeoutId);
+            resetNoSpeechTimeout();
+        }
+
+        function stopRecording() {
+            recognition.stop();
+            isRecording = false;
+            isOfficialRecording = false;
+            recordButton.textContent = 'Start Trial Recording';
+            officialRecordButton.textContent = 'Start Official Recording';
+            recordButton.classList.remove('disabled');
+            officialRecordButton.classList.remove('disabled');
+        }
 
         function updateTriesLeft() {
             officialRecordingTries--;
@@ -156,13 +168,7 @@
             clearTimeout(noSpeechTimeoutId);
             noSpeechTimeoutId = setTimeout(() => {
                 if (isRecording || isOfficialRecording) {
-                    recognition.stop();
-                    isRecording = false;
-                    isOfficialRecording = false;
-                    recordButton.textContent = 'Start Trial Recording';
-                    officialRecordButton.textContent = 'Start Official Recording';
-                    officialRecordButton.classList.remove('disabled');
-                    recordButton.classList.remove('disabled');
+                    stopRecording();
                 }
             }, 30000);
         }
