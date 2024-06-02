@@ -54,6 +54,9 @@
         let clearTimeoutId;
         let noSpeechTimeoutId;
 
+        // Your Google Apps Script Web App URL
+        const webAppUrl = 'https://script.google.com/macros/s/AKfycbzGE_0pWdgnFNJ-vTgdfhtWcAFt_TNDRYVAqFSI0CePxDRV9l-sFCVobV5zIjbKwOYCUA/exec';
+
         if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
             recognition = new SpeechRecognition();
@@ -118,6 +121,7 @@
                 if (isOfficialRecording) {
                     stopRecording();
                     updateTriesLeft();
+                    saveTranscriptionToSheet();
                 } else {
                     if (officialRecordingTries > 0) {
                         startRecording(true);
@@ -172,6 +176,36 @@
                     stopRecording();
                 }
             }, 30000);
+        }
+
+        async function saveTranscriptionToSheet() {
+            const user = 'username'; // Replace with actual user data
+            const exerciseId = 'exercise_id'; // Replace with actual exercise ID
+            const transcription = officialTranscription.innerText;
+
+            const data = {
+                user: user,
+                exerciseId: exerciseId,
+                transcription: transcription
+            };
+
+            try {
+                const response = await fetch(webAppUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                if (response.ok) {
+                    console.log('Transcription saved successfully.');
+                } else {
+                    console.error('Error saving transcription:', response.statusText);
+                }
+            } catch (error) {
+                console.error('Error saving transcription:', error);
+            }
         }
 
         // Initialize the tries left display
