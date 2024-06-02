@@ -20,16 +20,24 @@
             width: 100%;
             min-height: 50px;
         }
+        .disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
     </style>
 </head>
 <body>
-    <h1>Recording trial </h1>
+    <h1>Recording Trial</h1>
     <button id="recordButton">Start Trial Recording</button>
     <div id="status"></div>
     <div id="transcription"></div>
 
+    <h2>Official Recording</h2>
+    <button id="officialRecordButton">Start Official Recording</button>
+
     <script>
         const recordButton = document.getElementById('recordButton');
+        const officialRecordButton = document.getElementById('officialRecordButton');
         const status = document.getElementById('status');
         const transcription = document.getElementById('transcription');
         let isRecording = false;
@@ -43,7 +51,7 @@
             recognition.lang = 'en-US';
 
             recognition.onstart = function() {
-                status.innerHTML = 'Recording <span class="microphone-icon">🎤</span>';
+                status.innerHTML = 'Recording... <span class="microphone-icon">🎤</span>';
             };
 
             recognition.onresult = function(event) {
@@ -69,22 +77,15 @@
             alert('Speech Recognition API is not supported in this browser.');
         }
 
-        async function isMicrophoneInUse() {
-            const devices = await navigator.mediaDevices.enumerateDevices();
-            for (let device of devices) {
-                if (device.kind === 'audioinput' && device.deviceId) {
-                    return true;
-                }
+        function toggleButtons() {
+            if (isRecording) {
+                officialRecordButton.classList.add('disabled');
+            } else {
+                officialRecordButton.classList.remove('disabled');
             }
-            return false;
         }
 
-        recordButton.addEventListener('click', async () => {
-            if (await isMicrophoneInUse() && !isRecording) {
-                alert('Microphone is in use!');
-                return;
-            }
-
+        recordButton.addEventListener('click', () => {
             if (isRecording) {
                 recognition.stop();
                 isRecording = false;
@@ -92,7 +93,17 @@
             } else {
                 recognition.start();
                 isRecording = true;
-                recordButton.textContent = 'Stop Recording';
+                recordButton.textContent = 'Stop Trial Recording';
+            }
+            toggleButtons();
+        });
+
+        officialRecordButton.addEventListener('click', () => {
+            if (!isRecording) {
+                recognition.start();
+                isRecording = true;
+                officialRecordButton.textContent = 'Stop Official Recording';
+                toggleButtons();
             }
         });
     </script>
