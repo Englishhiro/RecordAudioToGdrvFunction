@@ -34,7 +34,7 @@
     <div id="transcription"></div>
 
     <h2>Official Recording</h2>
-    <h2 id="triesLeftDisplay">X attempts left.</h2>
+    <h2 id="triesLeftDisplay">00 attempts left.</h2>
     <button id="officialRecordButton" class="disabled">Start Official Recording</button>
     <div id="officialStatus"></div>
     <div id="officialTranscription"></div>
@@ -51,6 +51,8 @@
         let isOfficialRecording = false;
         let recognition;
         let clearTimeoutId;
+        let trialStartTime;
+        let trialEndTime;
         let officialStartTime;
         let officialEndTime;
 
@@ -70,7 +72,7 @@
         }
 
         function updateTriesLeftDisplay() {
-            triesLeftDisplay.textContent = `${officialRecordingTries} attempts left.`;
+            triesLeftDisplay.textContent = `${officialRecordingTries.toString().padStart(2, '0')} attempts left.`;
             if (officialRecordingTries <= 0) {
                 officialRecordButton.classList.add('disabled');
             } else {
@@ -94,6 +96,7 @@
                     officialStartTime = new Date().getTime();
                     officialStatus.innerHTML = 'Recording... <span class="microphone-icon">🎤</span>';
                 } else {
+                    trialStartTime = new Date().getTime();
                     status.innerHTML = 'Recording... <span class="microphone-icon">🎤</span>';
                 }
             };
@@ -132,8 +135,10 @@
             if (isRecording) {
                 recognition.stop();
                 isRecording = false;
+                trialEndTime = new Date().getTime();
                 recordButton.textContent = 'Start Trial Recording';
                 officialRecordButton.classList.remove('disabled');
+                logRecordingData(0);
             } else {
                 recognition.start();
                 isRecording = true;
@@ -151,7 +156,7 @@
                     officialEndTime = new Date().getTime();
                     officialRecordButton.textContent = 'Start Official Recording';
                     recordButton.classList.remove('disabled');
-                    logRecordingData();
+                    logRecordingData(1, officialTranscription.innerText);
                     updateTriesLeft();
                 } else {
                     if (officialRecordingTries > 0) {
@@ -176,13 +181,17 @@
             officialTranscription.innerText = '';
         }
 
-        function logRecordingData() {
-            const duration = (officialEndTime - officialStartTime) / 1000; // Calculate duration in seconds
+        function logRecordingData(type, transcriptionText = '') {
+            const endTime = type === 0 ? trialEndTime : officialEndTime;
+            const startTime = type === 0 ? trialStartTime : officialStartTime;
+            const duration = (endTime - startTime) / 1000; // Calculate duration in seconds
             const data = {
                 timestamp: new Date().toISOString(),
                 user: 'exampleUser', // Replace with actual user identification
                 exerciseId: '01',
-                duration: duration
+                duration: duration,
+                type: type,
+                transcription: transcriptionText
             };
 
             fetch('https://script.google.com/macros/s/AKfycby1drOPlzq-vJsU9Y2MG7mYjP0K-BIj2HxFCWL7Mn7GvCeWharV3_iNJk6BjBIPeAea1w/exec', {
