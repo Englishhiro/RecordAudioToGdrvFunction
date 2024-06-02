@@ -91,6 +91,7 @@
             recognition.onstart = function() {
                 clearTimeout(clearTimeoutId);
                 if (isOfficialRecording) {
+                    officialStartTime = new Date().getTime();
                     officialStatus.innerHTML = 'Recording... <span class="microphone-icon">🎤</span>';
                 } else {
                     status.innerHTML = 'Recording... <span class="microphone-icon">🎤</span>';
@@ -145,18 +146,15 @@
         officialRecordButton.addEventListener('click', () => {
             if (!officialRecordButton.classList.contains('disabled')) {
                 if (isOfficialRecording) {
-                    officialEndTime = new Date(); // Record end time
                     recognition.stop();
                     isOfficialRecording = false;
+                    officialEndTime = new Date().getTime();
                     officialRecordButton.textContent = 'Start Official Recording';
                     recordButton.classList.remove('disabled');
+                    logRecordingData();
                     updateTriesLeft();
-                    
-                    // Log data to Google Sheet
-                    logDataToGoogleSheet();
                 } else {
                     if (officialRecordingTries > 0) {
-                        officialStartTime = new Date(); // Record start time
                         recognition.start();
                         isOfficialRecording = true;
                         officialRecordButton.textContent = 'Stop Official Recording';
@@ -178,24 +176,25 @@
             officialTranscription.innerText = '';
         }
 
-        function logDataToGoogleSheet() {
+        function logRecordingData() {
             const duration = (officialEndTime - officialStartTime) / 1000; // Calculate duration in seconds
             const data = {
+                timestamp: new Date().toISOString(),
                 user: 'exampleUser', // Replace with actual user identification
                 exerciseId: '01',
                 duration: duration
             };
-            
-            fetch('https://script.google.com/macros/s/AKfycbyMYsrL6db-ukiy0GqdcpQEbNcPAdvNfJxYamGClNZW3DINx4QJwDbbXj3CtFCTc8YlDw/exec', {
+
+            fetch('https://script.google.com/macros/s/AKfycby1drOPlzq-vJsU9Y2MG7mYjP0K-BIj2HxFCWL7Mn7GvCeWharV3_iNJk6BjBIPeAea1w/exec', {
                 method: 'POST',
-                body: JSON.stringify(data),
+                mode: 'no-cors',
                 headers: {
                     'Content-Type': 'application/json'
-                }
+                },
+                body: JSON.stringify(data)
             })
-            .then(response => response.json())
-            .then(responseData => {
-                console.log('Data logged successfully:', responseData);
+            .then(response => {
+                console.log('Data logged successfully:', data);
             })
             .catch(error => {
                 console.error('Error logging data:', error);
