@@ -40,7 +40,8 @@
         const officialRecordButton = document.getElementById('officialRecordButton');
         const status = document.getElementById('status');
         const transcription = document.getElementById('transcription');
-        let isRecording = false;
+        let isTrialRecording = false;
+        let isOfficialRecording = false;
         let recognition;
 
         if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
@@ -67,7 +68,7 @@
             };
 
             recognition.onend = function() {
-                if (isRecording) {
+                if (isTrialRecording || isOfficialRecording) {
                     recognition.start();
                 } else {
                     status.innerHTML = '';
@@ -78,34 +79,45 @@
         }
 
         function toggleButtons() {
-            if (isRecording) {
+            if (isTrialRecording || isOfficialRecording) {
+                recordButton.classList.add('disabled');
                 officialRecordButton.classList.add('disabled');
             } else {
+                recordButton.classList.remove('disabled');
                 officialRecordButton.classList.remove('disabled');
             }
         }
 
         recordButton.addEventListener('click', () => {
-            if (isRecording) {
+            if (isTrialRecording) {
                 recognition.stop();
-                isRecording = false;
+                isTrialRecording = false;
                 recordButton.textContent = 'Start Trial Recording';
             } else {
-                recognition.start();
-                isRecording = true;
-                recordButton.textContent = 'Stop Trial Recording';
+                if (!isOfficialRecording) {
+                    recognition.start();
+                    isTrialRecording = true;
+                    recordButton.textContent = 'Stop Trial Recording';
+                }
             }
             toggleButtons();
         });
 
         officialRecordButton.addEventListener('click', () => {
-            if (!isRecording) {
-                recognition.start();
-                isRecording = true;
-                officialRecordButton.textContent = 'Stop Official Recording';
-                toggleButtons();
+            if (isOfficialRecording) {
+                recognition.stop();
+                isOfficialRecording = false;
+                officialRecordButton.textContent = 'Start Official Recording';
+            } else {
+                if (!isTrialRecording) {
+                    recognition.start();
+                    isOfficialRecording = true;
+                    officialRecordButton.textContent = 'Stop Official Recording';
+                }
             }
+            toggleButtons();
         });
+
     </script>
 </body>
 </html>
