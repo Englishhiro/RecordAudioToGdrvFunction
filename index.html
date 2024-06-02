@@ -83,41 +83,59 @@
             google.accounts.id.prompt(); // Display the One Tap UI
         }
 
-        function uploadToGoogleDrive(blob, token) {
+        function uploadToGoogleDrive(blob, credential) {
+            const tokenData = parseJwt(credential);
+            const token = tokenData.access_token;
+
             const reader = new FileReader();
             reader.readAsDataURL(blob);
             reader.onloadend = () => {
                 const base64data = reader.result.split(',')[1];
 
                 // Initialize the Google API client
-                gapi.load('client', () => {
-                    gapi.client.init({
-                        apiKey: 'AIzaSyBPn9zs5JdmEvQ5tUmG0azSLL_R590W-MI',
-                        discoveryDocs: ["https://www.googleapis.com/discovery/v1/apis/drive/v3/rest"]
+                gapi.load('client:auth2', () => {
+                    gapi.auth2.init({
+                        client_id: '305229200010-tb2rufv2s4cqstbevq3n8co4rl5h8nfn.apps.googleusercontent.com'
                     }).then(() => {
-                        gapi.client.setToken({ access_token: token });
-                        const fileMetadata = {
-                            'name': 'recording.wav',
-                            'parents': ['1OLSxqrewxO-F4YI3PED-K0UMYaGhrXXd'] // Replace with your folder ID
-                        };
-                        const media = {
-                            mimeType: 'audio/wav',
-                            body: new Blob([new Uint8Array(atob(base64data).split("").map((char) => char.charCodeAt(0)))])
-                        };
-                        gapi.client.drive.files.create({
-                            resource: fileMetadata,
-                            media: media,
-                            fields: 'id'
-                        }).then((response) => {
-                            console.log('File uploaded successfully, ID: ', response.result.id);
-                        }, (error) => {
-                            console.error('Error uploading file: ', error);
+                        gapi.client.init({
+                            apiKey: 'AIzaSyBPn9zs5JdmEvQ5tUmG0azSLL_R590W-MI',
+                            discoveryDocs: ["https://www.googleapis.com/discovery/v1/apis/drive/v3/rest"]
+                        }).then(() => {
+                            const fileMetadata = {
+                                'name': 'recording.wav',
+                                'parents': ['1OLSxqrewxO-F4YI3PED-K0UMYaGhrXXd'] // Replace with your folder ID
+                            };
+                            const media = {
+                                mimeType: 'audio/wav',
+                                body: new Blob([new Uint8Array(atob(base64data).split("").map((char) => char.charCodeAt(0)))])
+                            };
+                            gapi.client.drive.files.create({
+                                resource: fileMetadata,
+                                media: media,
+                                fields: 'id'
+                            }).then((response) => {
+                                console.log('File uploaded successfully, ID: ', response.result.id);
+                            }, (error) => {
+                                console.error('Error uploading file: ', error);
+                            });
+                        }).catch((error) => {
+                            console.error('Error initializing Google API client: ', error);
                         });
                     }).catch((error) => {
-                        console.error('Error initializing Google API client: ', error);
+                        console.error('Error initializing Google Auth2: ', error);
                     });
                 });
             };
+        }
+
+        function parseJwt (token) {
+            let base64Url = token.split('.')[1];
+            let base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+            let jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+                return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+            }).join(''));
+
+            return JSON.parse(jsonPayload);
         }
     </script>
 </body>
