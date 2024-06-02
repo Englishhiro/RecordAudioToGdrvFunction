@@ -26,7 +26,7 @@
             border: 1px solid #ccc;
             padding: 10px;
             width: 100%;
-            min-height: 150px; /* Increase min-height for larger box */
+            min-height: 300px; /* Increased min-height for 3 mins of continuous speech */
             box-sizing: border-box;
         }
         .disabled {
@@ -182,7 +182,6 @@
 
         function clearTranscriptions() {
             transcription.innerText = '';
-            // Don't clear officialTranscription to keep the full transcription
         }
 
         function logToGoogleSheet(isOfficial, transcript) {
