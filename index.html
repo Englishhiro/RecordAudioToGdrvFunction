@@ -13,12 +13,20 @@
             font-size: 2em;
             color: red;
         }
-        #transcription, #officialTranscription {
+        #transcription {
             margin-top: 20px;
             border: 1px solid #ccc;
             padding: 10px;
             width: 100%;
             min-height: 50px;
+            box-sizing: border-box;
+        }
+        #officialTranscription {
+            margin-top: 20px;
+            border: 1px solid #ccc;
+            padding: 10px;
+            width: 100%;
+            min-height: 150px; /* Increase min-height for larger box */
             box-sizing: border-box;
         }
         .disabled {
@@ -174,7 +182,7 @@
 
         function clearTranscriptions() {
             transcription.innerText = '';
-            officialTranscription.innerText = '';
+            // Don't clear officialTranscription to keep the full transcription
         }
 
         function logToGoogleSheet(isOfficial, transcript) {
