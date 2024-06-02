@@ -27,20 +27,23 @@
     </style>
 </head>
 <body>
-    <h1>Recording Trial</h1>
+    <h1>Recording trial</h1>
     <button id="recordButton">Start Trial Recording</button>
     <div id="status"></div>
     <div id="transcription"></div>
-
     <h2>Official Recording</h2>
-    <button id="officialRecordButton">Start Official Recording</button>
+    <button id="officialRecordButton" class="disabled">Start Official Recording</button>
+    <div id="officialStatus"></div>
+    <div id="officialTranscription"></div>
 
     <script>
         const recordButton = document.getElementById('recordButton');
         const officialRecordButton = document.getElementById('officialRecordButton');
         const status = document.getElementById('status');
         const transcription = document.getElementById('transcription');
-        let isTrialRecording = false;
+        const officialStatus = document.getElementById('officialStatus');
+        const officialTranscription = document.getElementById('officialTranscription');
+        let isRecording = false;
         let isOfficialRecording = false;
         let recognition;
 
@@ -52,7 +55,11 @@
             recognition.lang = 'en-US';
 
             recognition.onstart = function() {
-                status.innerHTML = 'Recording... <span class="microphone-icon">🎤</span>';
+                if (isOfficialRecording) {
+                    officialStatus.innerHTML = 'Recording... <span class="microphone-icon">🎤</span>';
+                } else {
+                    status.innerHTML = 'Recording... <span class="microphone-icon">🎤</span>';
+                }
             };
 
             recognition.onresult = function(event) {
@@ -60,7 +67,11 @@
                 for (let i = event.resultIndex; i < event.results.length; ++i) {
                     transcript += event.results[i][0].transcript;
                 }
-                transcription.innerText = transcript;
+                if (isOfficialRecording) {
+                    officialTranscription.innerText = transcript;
+                } else {
+                    transcription.innerText = transcript;
+                }
             };
 
             recognition.onerror = function(event) {
@@ -68,56 +79,46 @@
             };
 
             recognition.onend = function() {
-                if (isTrialRecording || isOfficialRecording) {
+                if (isRecording || isOfficialRecording) {
                     recognition.start();
                 } else {
                     status.innerHTML = '';
+                    officialStatus.innerHTML = '';
                 }
             };
         } else {
             alert('Speech Recognition API is not supported in this browser.');
         }
 
-        function toggleButtons() {
-            if (isTrialRecording || isOfficialRecording) {
-                recordButton.classList.add('disabled');
-                officialRecordButton.classList.add('disabled');
-            } else {
-                recordButton.classList.remove('disabled');
-                officialRecordButton.classList.remove('disabled');
-            }
-        }
-
         recordButton.addEventListener('click', () => {
-            if (isTrialRecording) {
+            if (isRecording) {
                 recognition.stop();
-                isTrialRecording = false;
+                isRecording = false;
                 recordButton.textContent = 'Start Trial Recording';
+                officialRecordButton.classList.remove('disabled');
             } else {
-                if (!isOfficialRecording) {
-                    recognition.start();
-                    isTrialRecording = true;
-                    recordButton.textContent = 'Stop Trial Recording';
-                }
+                recognition.start();
+                isRecording = true;
+                recordButton.textContent = 'Stop Trial Recording';
+                officialRecordButton.classList.add('disabled');
             }
-            toggleButtons();
         });
 
         officialRecordButton.addEventListener('click', () => {
-            if (isOfficialRecording) {
-                recognition.stop();
-                isOfficialRecording = false;
-                officialRecordButton.textContent = 'Start Official Recording';
-            } else {
-                if (!isTrialRecording) {
+            if (!officialRecordButton.classList.contains('disabled')) {
+                if (isOfficialRecording) {
+                    recognition.stop();
+                    isOfficialRecording = false;
+                    officialRecordButton.textContent = 'Start Official Recording';
+                    recordButton.classList.remove('disabled');
+                } else {
                     recognition.start();
                     isOfficialRecording = true;
                     officialRecordButton.textContent = 'Stop Official Recording';
+                    recordButton.classList.add('disabled');
                 }
             }
-            toggleButtons();
         });
-
     </script>
 </body>
 </html>
