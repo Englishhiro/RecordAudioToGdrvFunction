@@ -51,6 +51,7 @@
         let isOfficialRecording = false;
         let recognition;
         let officialRecordingTries = 5;
+        let clearTimeoutId;
 
         if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -60,6 +61,7 @@
             recognition.lang = 'en-US';
 
             recognition.onstart = function() {
+                clearTimeout(clearTimeoutId);
                 if (isOfficialRecording) {
                     officialStatus.innerHTML = 'Recording... <span class="microphone-icon">🎤</span>';
                 } else {
@@ -68,6 +70,7 @@
             };
 
             recognition.onresult = function(event) {
+                clearTimeout(clearTimeoutId);
                 let transcript = '';
                 for (let i = event.resultIndex; i < event.results.length; ++i) {
                     transcript += event.results[i][0].transcript;
@@ -87,6 +90,7 @@
                 if (isRecording || isOfficialRecording) {
                     recognition.start();
                 } else {
+                    clearTimeoutId = setTimeout(clearTranscriptions, 10000);
                     status.innerHTML = '';
                     officialStatus.innerHTML = '';
                 }
@@ -106,6 +110,7 @@
                 isRecording = true;
                 recordButton.textContent = 'Stop Trial Recording';
                 officialRecordButton.classList.add('disabled');
+                clearTimeout(clearTimeoutId);
             }
         });
 
@@ -123,6 +128,7 @@
                         isOfficialRecording = true;
                         officialRecordButton.textContent = 'Stop Official Recording';
                         recordButton.classList.add('disabled');
+                        clearTimeout(clearTimeoutId);
                     }
                 }
             }
@@ -134,6 +140,11 @@
             if (officialRecordingTries <= 0) {
                 officialRecordButton.classList.add('disabled');
             }
+        }
+
+        function clearTranscriptions() {
+            transcription.innerText = '';
+            officialTranscription.innerText = '';
         }
 
         // Initialize the tries left display
