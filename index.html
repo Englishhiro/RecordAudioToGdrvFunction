@@ -1,57 +1,85 @@
-function uploadToGoogleDrive(blob, credential) {
-    const tokenData = parseJwt(credential);
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Voice Recorder with Speech to Text</title>
+    <style>
+        #status {
+            font-size: 1.2em;
+            margin-top: 10px;
+        }
+        .microphone-icon {
+            font-size: 2em;
+            color: red;
+        }
+        #transcription {
+            margin-top: 20px;
+            border: 1px solid #ccc;
+            padding: 10px;
+            width: 100%;
+            min-height: 50px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Voice Recorder with Speech to Text</h1>
+    <button id="recordButton">Start Recording</button>
+    <div id="status"></div>
+    <div id="transcription"></div>
 
-    const reader = new FileReader();
-    reader.readAsDataURL(blob);
-    reader.onloadend = () => {
-        const base64data = reader.result.split(',')[1];
+    <script>
+        const recordButton = document.getElementById('recordButton');
+        const status = document.getElementById('status');
+        const transcription = document.getElementById('transcription');
+        let isRecording = false;
+        let recognition;
 
-        // Initialize the Google API client
-        gapi.load('client:auth2', () => {
-            gapi.auth2.init({
-                client_id: 'YOUR_CLIENT_ID'
-            }).then(() => {
-                gapi.client.init({
-                    apiKey: 'YOUR_API_KEY',
-                    discoveryDocs: ["https://www.googleapis.com/discovery/v1/apis/drive/v3/rest"]
-                }).then(() => {
-                    gapi.auth.setToken({
-                        access_token: tokenData.access_token
-                    });
+        if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            recognition = new SpeechRecognition();
+            recognition.continuous = true;
+            recognition.interimResults = true;
+            recognition.lang = 'en-US';
 
-                    const fileMetadata = {
-                        'name': 'recording.wav',
-                        'parents': ['YOUR_FOLDER_ID'] // Replace with your folder ID
-                    };
-                    const media = {
-                        mimeType: 'audio/wav',
-                        body: new Blob([new Uint8Array(atob(base64data).split("").map((char) => char.charCodeAt(0)))])
-                    };
-                    gapi.client.drive.files.create({
-                        resource: fileMetadata,
-                        media: media,
-                        fields: 'id'
-                    }).then((response) => {
-                        console.log('File uploaded successfully, ID: ', response.result.id);
-                    }, (error) => {
-                        console.error('Error uploading file: ', error);
-                    });
-                }).catch((error) => {
-                    console.error('Error initializing Google API client: ', error);
-                });
-            }).catch((error) => {
-                console.error('Error initializing Google Auth2: ', error);
-            });
+            recognition.onstart = function() {
+                status.innerHTML = 'Recording <span class="microphone-icon">🎤</span>';
+            };
+
+            recognition.onresult = function(event) {
+                let transcript = '';
+                for (let i = event.resultIndex; i < event.results.length; ++i) {
+                    transcript += event.results[i][0].transcript;
+                }
+                transcription.innerText = transcript;
+            };
+
+            recognition.onerror = function(event) {
+                console.error(event.error);
+            };
+
+            recognition.onend = function() {
+                if (isRecording) {
+                    recognition.start();
+                } else {
+                    status.innerHTML = '';
+                }
+            };
+        } else {
+            alert('Speech Recognition API is not supported in this browser.');
+        }
+
+        recordButton.addEventListener('click', () => {
+            if (isRecording) {
+                recognition.stop();
+                isRecording = false;
+                recordButton.textContent = 'Start Recording';
+            } else {
+                recognition.start();
+                isRecording = true;
+                recordButton.textContent = 'Stop Recording';
+            }
         });
-    };
-}
-
-function parseJwt(token) {
-    let base64Url = token.split('.')[1];
-    let base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-    let jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
-        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-    }).join(''));
-
-    return JSON.parse(jsonPayload);
-}
+    </script>
+</body>
+</html>
