@@ -51,6 +51,8 @@
         let isOfficialRecording = false;
         let recognition;
         let clearTimeoutId;
+        let officialStartTime;
+        let officialEndTime;
 
         // Load tries from localStorage or initialize if not present
         let officialRecordingTries = parseInt(localStorage.getItem('officialRecordingTries')) || 5;
@@ -143,13 +145,18 @@
         officialRecordButton.addEventListener('click', () => {
             if (!officialRecordButton.classList.contains('disabled')) {
                 if (isOfficialRecording) {
+                    officialEndTime = new Date(); // Record end time
                     recognition.stop();
                     isOfficialRecording = false;
                     officialRecordButton.textContent = 'Start Official Recording';
                     recordButton.classList.remove('disabled');
                     updateTriesLeft();
+                    
+                    // Log data to Google Sheet
+                    logDataToGoogleSheet();
                 } else {
                     if (officialRecordingTries > 0) {
+                        officialStartTime = new Date(); // Record start time
                         recognition.start();
                         isOfficialRecording = true;
                         officialRecordButton.textContent = 'Stop Official Recording';
@@ -169,6 +176,30 @@
         function clearTranscriptions() {
             transcription.innerText = '';
             officialTranscription.innerText = '';
+        }
+
+        function logDataToGoogleSheet() {
+            const duration = (officialEndTime - officialStartTime) / 1000; // Calculate duration in seconds
+            const data = {
+                user: 'exampleUser', // Replace with actual user identification
+                exerciseId: '01',
+                duration: duration
+            };
+            
+            fetch('https://script.google.com/macros/s/AKfycbyMYsrL6db-ukiy0GqdcpQEbNcPAdvNfJxYamGClNZW3DINx4QJwDbbXj3CtFCTc8YlDw/exec', {
+                method: 'POST',
+                body: JSON.stringify(data),
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(responseData => {
+                console.log('Data logged successfully:', responseData);
+            })
+            .catch(error => {
+                console.error('Error logging data:', error);
+            });
         }
     </script>
 </body>
