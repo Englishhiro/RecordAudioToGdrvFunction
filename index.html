@@ -1,142 +1,57 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Record Audio and Upload to Google Drive</title>
-    <style>
-        #status {
-            display: none;
-            margin-top: 10px;
-        }
-        #microphone-icon {
-            display: none;
-            font-size: 24px;
-            margin-left: 10px;
-        }
-    </style>
-</head>
-<body>
-    <h1>Record Audio and Upload to Google Drive</h1>
-    <button id="recordButton">Start Recording</button>
-    <span id="status">Recording <span id="microphone-icon">🎤</span></span>
+function uploadToGoogleDrive(blob, credential) {
+    const tokenData = parseJwt(credential);
 
-    <!-- Google Identity Services script -->
-    <script src="https://accounts.google.com/gsi/client" async defer></script>
-    <!-- Google API Client Library -->
-    <script src="https://apis.google.com/js/api.js"></script>
+    const reader = new FileReader();
+    reader.readAsDataURL(blob);
+    reader.onloadend = () => {
+        const base64data = reader.result.split(',')[1];
 
-    <script>
-        let isRecording = false;
-        let mediaRecorder;
-        let audioChunks = [];
-        const recordButton = document.getElementById('recordButton');
-        const status = document.getElementById('status');
-        const microphoneIcon = document.getElementById('microphone-icon');
-
-        recordButton.addEventListener('click', () => {
-            if (isRecording) {
-                stopRecording();
-            } else {
-                startRecording();
-            }
-        });
-
-        function startRecording() {
-            navigator.mediaDevices.getUserMedia({ audio: true })
-                .then(stream => {
-                    mediaRecorder = new MediaRecorder(stream);
-                    mediaRecorder.start();
-
-                    mediaRecorder.addEventListener('dataavailable', event => {
-                        audioChunks.push(event.data);
+        // Initialize the Google API client
+        gapi.load('client:auth2', () => {
+            gapi.auth2.init({
+                client_id: 'YOUR_CLIENT_ID'
+            }).then(() => {
+                gapi.client.init({
+                    apiKey: 'YOUR_API_KEY',
+                    discoveryDocs: ["https://www.googleapis.com/discovery/v1/apis/drive/v3/rest"]
+                }).then(() => {
+                    gapi.auth.setToken({
+                        access_token: tokenData.access_token
                     });
 
-                    mediaRecorder.addEventListener('stop', () => {
-                        const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
-                        audioChunks = [];
-                        handleAuthClick(audioBlob);
+                    const fileMetadata = {
+                        'name': 'recording.wav',
+                        'parents': ['YOUR_FOLDER_ID'] // Replace with your folder ID
+                    };
+                    const media = {
+                        mimeType: 'audio/wav',
+                        body: new Blob([new Uint8Array(atob(base64data).split("").map((char) => char.charCodeAt(0)))])
+                    };
+                    gapi.client.drive.files.create({
+                        resource: fileMetadata,
+                        media: media,
+                        fields: 'id'
+                    }).then((response) => {
+                        console.log('File uploaded successfully, ID: ', response.result.id);
+                    }, (error) => {
+                        console.error('Error uploading file: ', error);
                     });
-
-                    isRecording = true;
-                    recordButton.textContent = 'Stop Recording';
-                    status.style.display = 'inline';
-                    microphoneIcon.style.display = 'inline';
+                }).catch((error) => {
+                    console.error('Error initializing Google API client: ', error);
                 });
-        }
-
-        function stopRecording() {
-            mediaRecorder.stop();
-            isRecording = false;
-            recordButton.textContent = 'Start Recording';
-            status.style.display = 'none';
-            microphoneIcon.style.display = 'none';
-        }
-
-        function handleAuthClick(blob) {
-            google.accounts.id.initialize({
-                client_id: '305229200010-tb2rufv2s4cqstbevq3n8co4rl5h8nfn.apps.googleusercontent.com',
-                callback: (response) => {
-                    uploadToGoogleDrive(blob, response.credential);
-                }
+            }).catch((error) => {
+                console.error('Error initializing Google Auth2: ', error);
             });
+        });
+    };
+}
 
-            google.accounts.id.prompt(); // Display the One Tap UI
-        }
+function parseJwt(token) {
+    let base64Url = token.split('.')[1];
+    let base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    let jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+    }).join(''));
 
-        function uploadToGoogleDrive(blob, credential) {
-            const tokenData = parseJwt(credential);
-            const token = tokenData.access_token;
-
-            const reader = new FileReader();
-            reader.readAsDataURL(blob);
-            reader.onloadend = () => {
-                const base64data = reader.result.split(',')[1];
-
-                // Initialize the Google API client
-                gapi.load('client:auth2', () => {
-                    gapi.auth2.init({
-                        client_id: '305229200010-tb2rufv2s4cqstbevq3n8co4rl5h8nfn.apps.googleusercontent.com'
-                    }).then(() => {
-                        gapi.client.init({
-                            apiKey: 'AIzaSyBPn9zs5JdmEvQ5tUmG0azSLL_R590W-MI',
-                            discoveryDocs: ["https://www.googleapis.com/discovery/v1/apis/drive/v3/rest"]
-                        }).then(() => {
-                            const fileMetadata = {
-                                'name': 'recording.wav',
-                                'parents': ['1OLSxqrewxO-F4YI3PED-K0UMYaGhrXXd'] // Replace with your folder ID
-                            };
-                            const media = {
-                                mimeType: 'audio/wav',
-                                body: new Blob([new Uint8Array(atob(base64data).split("").map((char) => char.charCodeAt(0)))])
-                            };
-                            gapi.client.drive.files.create({
-                                resource: fileMetadata,
-                                media: media,
-                                fields: 'id'
-                            }).then((response) => {
-                                console.log('File uploaded successfully, ID: ', response.result.id);
-                            }, (error) => {
-                                console.error('Error uploading file: ', error);
-                            });
-                        }).catch((error) => {
-                            console.error('Error initializing Google API client: ', error);
-                        });
-                    }).catch((error) => {
-                        console.error('Error initializing Google Auth2: ', error);
-                    });
-                });
-            };
-        }
-
-        function parseJwt (token) {
-            let base64Url = token.split('.')[1];
-            let base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-            let jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
-                return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-            }).join(''));
-
-            return JSON.parse(jsonPayload);
-        }
-    </script>
-</body>
-</html>
+    return JSON.parse(jsonPayload);
+}
