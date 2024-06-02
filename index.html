@@ -34,7 +34,7 @@
     <div id="transcription"></div>
 
     <h2>Official Recording</h2>
-    <h2 id="triesLeftDisplay">00 attempts left.</h2>
+    <h2 id="triesLeftDisplay">X attempts left.</h2>
     <button id="officialRecordButton" class="disabled">Start Official Recording</button>
     <div id="officialStatus"></div>
     <div id="officialTranscription"></div>
@@ -51,10 +51,10 @@
         let isOfficialRecording = false;
         let recognition;
         let clearTimeoutId;
-        let trialStartTime;
-        let trialEndTime;
-        let officialStartTime;
-        let officialEndTime;
+
+        // Replace with actual user and exercise ID
+        const user = "test_user";
+        const exerciseId = "exercise_1";
 
         // Load tries from localStorage or initialize if not present
         let officialRecordingTries = parseInt(localStorage.getItem('officialRecordingTries')) || 5;
@@ -93,10 +93,8 @@
             recognition.onstart = function() {
                 clearTimeout(clearTimeoutId);
                 if (isOfficialRecording) {
-                    officialStartTime = new Date().getTime();
                     officialStatus.innerHTML = 'Recording... <span class="microphone-icon">🎤</span>';
                 } else {
-                    trialStartTime = new Date().getTime();
                     status.innerHTML = 'Recording... <span class="microphone-icon">🎤</span>';
                 }
             };
@@ -135,10 +133,9 @@
             if (isRecording) {
                 recognition.stop();
                 isRecording = false;
-                trialEndTime = new Date().getTime();
                 recordButton.textContent = 'Start Trial Recording';
                 officialRecordButton.classList.remove('disabled');
-                logRecordingData(0);
+                logToGoogleSheet(0, transcription.innerText);  // Log trial recording
             } else {
                 recognition.start();
                 isRecording = true;
@@ -153,11 +150,10 @@
                 if (isOfficialRecording) {
                     recognition.stop();
                     isOfficialRecording = false;
-                    officialEndTime = new Date().getTime();
                     officialRecordButton.textContent = 'Start Official Recording';
                     recordButton.classList.remove('disabled');
-                    logRecordingData(1, officialTranscription.innerText);
                     updateTriesLeft();
+                    logToGoogleSheet(1, officialTranscription.innerText);  // Log official recording
                 } else {
                     if (officialRecordingTries > 0) {
                         recognition.start();
@@ -181,20 +177,19 @@
             officialTranscription.innerText = '';
         }
 
-        function logRecordingData(type, transcriptionText = '') {
-            const endTime = type === 0 ? trialEndTime : officialEndTime;
-            const startTime = type === 0 ? trialStartTime : officialStartTime;
-            const duration = (endTime - startTime) / 1000; // Calculate duration in seconds
+        function logToGoogleSheet(isOfficial, transcript) {
+            const timestamp = new Date().toISOString();
+            const duration = calculateDuration();  // Placeholder, implement duration calculation
             const data = {
-                timestamp: new Date().toISOString(),
-                user: 'exampleUser', // Replace with actual user identification
-                exerciseId: '01',
-                duration: duration,
-                type: type,
-                transcription: transcriptionText
+                timestamp,
+                user,
+                exerciseId,
+                duration,
+                isOfficial,
+                transcript
             };
 
-            fetch('https://script.google.com/macros/s/AKfycbyi_rT0kF3YG91Jtg-WsMucOuL-tT3cLB75S6hjEfPrDlHtg4onGmCZU_gsFn221_J-LQ/exec', {
+            fetch('https://script.google.com/macros/s/AKfycbwW83wpoXJh3Tu1qcbVTUR4HV_W3AznycbFvMxtg4VXZu3MC55eQziPSIKO7JYs16s6lA/exec', {
                 method: 'POST',
                 mode: 'no-cors',
                 headers: {
@@ -203,11 +198,16 @@
                 body: JSON.stringify(data)
             })
             .then(response => {
-                console.log('Data logged successfully:', data);
+                console.log('Data logged to Google Sheet', response);
             })
             .catch(error => {
-                console.error('Error logging data:', error);
+                console.error('Error logging to Google Sheet', error);
             });
+        }
+
+        function calculateDuration() {
+            // Implement your duration calculation logic here
+            return 0;  // Placeholder
         }
     </script>
 </body>
