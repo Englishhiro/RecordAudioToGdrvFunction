@@ -3,185 +3,29 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Voice Recorder with Speech to Text</title>
-    <style>
-        #status {
-            font-size: 1.2em;
-            margin-top: 10px;
-        }
-        .microphone-icon {
-            font-size: 2em;
-            color: red;
-        }
-        #transcription, #officialTranscription {
-            margin-top: 20px;
-            border: 1px solid #ccc;
-            padding: 10px;
-            width: 100%;
-            min-height: 50px;
-            box-sizing: border-box;
-        }
-        .disabled {
-            opacity: 0.5;
-            pointer-events: none;
-        }
-    </style>
+    <title>Transcription Saver</title>
 </head>
 <body>
-    <h2>Trial Recording</h2>
-    <button id="recordButton">Start Trial Recording</button>
-    <div id="status"></div>
-    <div id="transcription"></div>
-
-    <h2>Official Recording</h2>
-    <h2>Inform user how many tries to officially record left</h2>
-    <button id="officialRecordButton" class="disabled">Start Official Recording</button>
-    <div id="officialStatus"></div>
-    <div id="officialTranscription"></div>
+    <h1>Transcription Saver</h1>
+    <div>
+        <label for="user">User:</label>
+        <input type="text" id="user" name="user">
+    </div>
+    <div>
+        <label for="exerciseId">Exercise ID:</label>
+        <input type="text" id="exerciseId" name="exerciseId">
+    </div>
+    <div>
+        <label for="transcription">Transcription:</label>
+        <textarea id="transcription" name="transcription"></textarea>
+    </div>
+    <button onclick="saveTranscriptionToSheet()">Save Transcription</button>
 
     <script>
-        const recordButton = document.getElementById('recordButton');
-        const officialRecordButton = document.getElementById('officialRecordButton');
-        const status = document.getElementById('status');
-        const transcription = document.getElementById('transcription');
-        const officialStatus = document.getElementById('officialStatus');
-        const officialTranscription = document.getElementById('officialTranscription');
-        const triesLeftDisplay = document.querySelector("h2:nth-of-type(3)");
-        let isRecording = false;
-        let isOfficialRecording = false;
-        let recognition;
-        let officialRecordingTries = 5;
-        let clearTimeoutId;
-        let noSpeechTimeoutId;
-
-        // Your Google Apps Script Web App URL
-        const webAppUrl = 'https://script.google.com/macros/s/AKfycbygTYhyMihTEhy8NSdfj72BB8qAAcb6t9P0mHuBARDHKkbdGBCNiCJy9c-_rh7hlczRbw/exec';
-
-        if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-            recognition = new SpeechRecognition();
-            recognition.continuous = true;
-            recognition.interimResults = true;
-            recognition.lang = 'en-US';
-
-            recognition.onstart = function() {
-                clearTimeout(clearTimeoutId);
-                resetNoSpeechTimeout();
-                if (isOfficialRecording) {
-                    officialStatus.innerHTML = 'Recording... <span class="microphone-icon">🎤</span>';
-                } else {
-                    status.innerHTML = 'Recording... <span class="microphone-icon">🎤</span>';
-                }
-            };
-
-            recognition.onresult = function(event) {
-                clearTimeout(clearTimeoutId);
-                resetNoSpeechTimeout();
-                let transcript = '';
-                for (let i = event.resultIndex; i < event.results.length; ++i) {
-                    transcript += event.results[i][0].transcript;
-                }
-                if (isOfficialRecording) {
-                    officialTranscription.innerText = transcript;
-                } else {
-                    transcription.innerText = transcript;
-                }
-            };
-
-            recognition.onerror = function(event) {
-                console.error(event.error);
-                if (event.error === 'no-speech' || event.error === 'audio-capture') {
-                    stopRecording();
-                }
-            };
-
-            recognition.onend = function() {
-                if (isRecording || isOfficialRecording) {
-                    recognition.start();
-                } else {
-                    clearTimeoutId = setTimeout(clearTranscriptions, 10000);
-                    status.innerHTML = '';
-                    officialStatus.innerHTML = '';
-                }
-            };
-        } else {
-            alert('Speech Recognition API is not supported in this browser.');
-        }
-
-        recordButton.addEventListener('click', () => {
-            if (isRecording) {
-                stopRecording();
-            } else {
-                startRecording(false);
-            }
-        });
-
-        officialRecordButton.addEventListener('click', () => {
-            if (!officialRecordButton.classList.contains('disabled')) {
-                if (isOfficialRecording) {
-                    stopRecording();
-                    updateTriesLeft();
-                    saveTranscriptionToSheet();
-                } else {
-                    if (officialRecordingTries > 0) {
-                        startRecording(true);
-                    }
-                }
-            }
-        });
-
-        function startRecording(isOfficial) {
-            recognition.start();
-            if (isOfficial) {
-                isOfficialRecording = true;
-                officialRecordButton.textContent = 'Stop Official Recording';
-                recordButton.classList.add('disabled');
-            } else {
-                isRecording = true;
-                recordButton.textContent = 'Stop Trial Recording';
-                officialRecordButton.classList.add('disabled');
-            }
-            clearTimeout(clearTimeoutId);
-            resetNoSpeechTimeout();
-        }
-
-        function stopRecording() {
-            recognition.stop();
-            isRecording = false;
-            isOfficialRecording = false;
-            recordButton.textContent = 'Start Trial Recording';
-            officialRecordButton.textContent = 'Start Official Recording';
-            recordButton.classList.remove('disabled');
-            officialRecordButton.classList.remove('disabled');
-            clearTimeout(noSpeechTimeoutId);
-        }
-
-        function updateTriesLeft() {
-            officialRecordingTries--;
-            triesLeftDisplay.textContent = `Tries left for official recording: ${officialRecordingTries}`;
-            if (officialRecordingTries <= 0) {
-                officialRecordButton.classList.add('disabled');
-            }
-        }
-
-        function clearTranscriptions() {
-            transcription.innerText = '';
-            officialTranscription.innerText = '';
-        }
-
-        function resetNoSpeechTimeout() {
-            clearTimeout(noSpeechTimeoutId);
-            noSpeechTimeoutId = setTimeout(() => {
-                if (isRecording || isOfficialRecording) {
-                    stopRecording();
-                }
-            }, 30000);
-        }
-
         async function saveTranscriptionToSheet() {
-            const user = 'username'; // Replace with actual user data
-            const exerciseId = 'exercise_id'; // Replace with actual exercise ID
-            const transcription = officialTranscription.innerText;
+            const user = document.getElementById('user').value;
+            const exerciseId = document.getElementById('exerciseId').value;
+            const transcription = document.getElementById('transcription').value;
 
             const data = {
                 user: user,
@@ -190,7 +34,7 @@
             };
 
             try {
-                const response = await fetch(webAppUrl, {
+                const response = await fetch('https://script.google.com/macros/s/AKfycbxcnGFEGUjXqI6sJi_k4CjMulRAKnGqx9hS8-UUK8kqUV7Ex7HeCiwCKzLcG8keqRAsiA/exec', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -207,9 +51,6 @@
                 console.error('Error saving transcription:', error);
             }
         }
-
-        // Initialize the tries left display
-        updateTriesLeft();
     </script>
 </body>
 </html>
