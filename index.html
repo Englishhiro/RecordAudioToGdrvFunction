@@ -52,8 +52,44 @@
             const audioElements = document.querySelectorAll('audio');
             audioElements.forEach(audio => {
                 let startTime;
+                let silenceTimeout;
+                let recognition;
+                
+                function resetSilenceTimeout() {
+                    if (silenceTimeout) clearTimeout(silenceTimeout);
+                    silenceTimeout = setTimeout(() => {
+                        audio.pause();
+                        recognition.stop();
+                        console.log('Recording stopped due to 30 seconds of silence.');
+                    }, 30000);
+                }
+
                 audio.addEventListener('play', () => {
                     startTime = new Date().getTime();
+                    
+                    // Start speech recognition
+                    if (!('webkitSpeechRecognition' in window)) {
+                        console.log('Speech recognition not supported.');
+                        return;
+                    }
+                    recognition = new webkitSpeechRecognition();
+                    recognition.continuous = true;
+                    recognition.interimResults = true;
+
+                    recognition.onresult = (event) => {
+                        resetSilenceTimeout();
+                    };
+
+                    recognition.onerror = (event) => {
+                        console.error('Speech recognition error:', event.error);
+                    };
+
+                    recognition.onend = () => {
+                        console.log('Speech recognition ended.');
+                    };
+
+                    recognition.start();
+                    resetSilenceTimeout();
                 });
 
                 audio.addEventListener('pause', () => {
@@ -61,6 +97,8 @@
                         const duration = (new Date().getTime() - startTime) / 1000;
                         logListeningData(audio.id, user, audio.querySelector('source').src, duration);
                         startTime = null;
+                        if (recognition) recognition.stop();
+                        clearTimeout(silenceTimeout);
                     }
                 });
 
@@ -69,6 +107,8 @@
                         const duration = (new Date().getTime() - startTime) / 1000;
                         logListeningData(audio.id, user, audio.querySelector('source').src, duration);
                         startTime = null;
+                        if (recognition) recognition.stop();
+                        clearTimeout(silenceTimeout);
                     }
                 });
             });
