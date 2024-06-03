@@ -51,6 +51,7 @@
         let isOfficialRecording = false;
         let recognition;
         let clearTimeoutId;
+        let startTime;
 
         // Load tries from localStorage or initialize if not present
         let officialRecordingTries = parseInt(localStorage.getItem('officialRecordingTries')) || 5;
@@ -88,6 +89,7 @@
 
             recognition.onstart = function() {
                 clearTimeout(clearTimeoutId);
+                startTime = Date.now();
                 if (isOfficialRecording) {
                     officialStatus.innerHTML = 'Recording... <span class="microphone-icon">🎤</span>';
                 } else {
@@ -131,6 +133,7 @@
                 isRecording = false;
                 recordButton.textContent = 'Start Trial Recording';
                 officialRecordButton.classList.remove('disabled');
+                logTrialRecording();
             } else {
                 recognition.start();
                 isRecording = true;
@@ -169,6 +172,35 @@
         function clearTranscriptions() {
             transcription.innerText = '';
             officialTranscription.innerText = '';
+        }
+
+        function logTrialRecording() {
+            const timestamp = new Date().toISOString();
+            const user = 'user@example.com'; // Replace with actual user info
+            const exerciseId = 'exercise123'; // Replace with actual exercise ID
+            const duration = (Date.now() - startTime) / 1000;
+            const type = 0;
+            const trialTranscription = transcription.innerText;
+
+            fetch('https://script.google.com/macros/s/AKfycbxQz2VKhbX2hCqeoniK5WNOQhmhWNp6J6H5bfpsyp3c7C9Z13vaUtKOZn01rEvK9ww4/exec', {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    timestamp,
+                    user,
+                    exerciseId,
+                    duration,
+                    type,
+                    transcription: trialTranscription
+                })
+            }).then(response => {
+                console.log('Log sent to Google Sheets', response);
+            }).catch(error => {
+                console.error('Error logging to Google Sheets', error);
+            });
         }
     </script>
 </body>
