@@ -86,9 +86,7 @@
         let recognition;
         let finalTranscript = '';
         let interimTranscript = '';
-        let silenceTimeout;
-
-        const SILENCE_LIMIT = 30000; // 30 seconds
+        let inactivityTimeout;
 
         // Replace with actual user and exercise ID
         const user = "test_user";
@@ -134,11 +132,10 @@
                 } else {
                     status.innerHTML = 'Recording... <span class="microphone-icon">🎤</span>';
                 }
-                resetSilenceTimeout();
+                resetInactivityTimeout();
             };
 
             recognition.onresult = function(event) {
-                resetSilenceTimeout();
                 interimTranscript = '';
                 for (let i = event.resultIndex; i < event.results.length; ++i) {
                     if (event.results[i].isFinal) {
@@ -159,6 +156,7 @@
                 }
                 autoExpand(T2);
                 autoExpand(Tx);
+                resetInactivityTimeout();
             };
 
             recognition.onerror = function(event) {
@@ -166,13 +164,13 @@
             };
 
             recognition.onend = function() {
-                clearSilenceTimeout();
                 if (isRecording || isOfficialRecording) {
                     recognition.start();
                 } else {
                     status.innerHTML = '';
                     officialStatus.innerHTML = '';
                 }
+                clearTimeout(inactivityTimeout);
             };
         } else {
             alert('Speech Recognition API is not supported in this browser.');
@@ -180,54 +178,46 @@
 
         recordButton.addEventListener('click', () => {
             if (isRecording) {
-                stopRecording(false);
+                recognition.stop();
+                isRecording = false;
+                recordButton.textContent = 'Start Trial Recording';
+                officialRecordButton.classList.remove('disabled');
+                logToGoogleSheet(0, transcription.innerText.trim());  // Log trial recording
+                finalTranscript = '';  // Reset final transcript
+                clearTimeout(inactivityTimeout);
             } else {
-                startRecording(false);
+                recognition.start();
+                isRecording = true;
+                recordButton.textContent = 'Stop Trial Recording';
+                officialRecordButton.classList.add('disabled');
+                Tx.innerText = '';  // Clear Tx box
+                finalTranscript = '';  // Reset final transcript
             }
         });
 
         officialRecordButton.addEventListener('click', () => {
             if (!officialRecordButton.classList.contains('disabled')) {
                 if (isOfficialRecording) {
-                    stopRecording(true);
+                    recognition.stop();
+                    isOfficialRecording = false;
+                    officialRecordButton.textContent = 'Start Official Recording';
+                    recordButton.classList.remove('disabled');
+                    updateTriesLeft();
+                    logToGoogleSheet(1, T2.innerText.trim());  // Log official recording content from T2
+                    finalTranscript = '';  // Reset final transcript
+                    clearTimeout(inactivityTimeout);
                 } else {
-                    startRecording(true);
+                    if (officialRecordingTries > 0) {
+                        recognition.start();
+                        isOfficialRecording = true;
+                        officialRecordButton.textContent = 'Stop Official Recording';
+                        recordButton.classList.add('disabled');
+                        T2.innerText = '';  // Clear T2 box
+                        finalTranscript = '';  // Reset final transcript
+                    }
                 }
             }
         });
-
-        function startRecording(isOfficial) {
-            recognition.start();
-            if (isOfficial) {
-                isOfficialRecording = true;
-                officialRecordButton.textContent = 'Stop Official Recording';
-                recordButton.classList.add('disabled');
-                T2.innerText = '';  // Clear T2 box
-            } else {
-                isRecording = true;
-                recordButton.textContent = 'Stop Trial Recording';
-                officialRecordButton.classList.add('disabled');
-                Tx.innerText = '';  // Clear Tx box
-            }
-            finalTranscript = '';  // Reset final transcript
-        }
-
-        function stopRecording(isOfficial) {
-            recognition.stop();
-            if (isOfficial) {
-                isOfficialRecording = false;
-                officialRecordButton.textContent = 'Start Official Recording';
-                recordButton.classList.remove('disabled');
-                updateTriesLeft();
-                logToGoogleSheet(1, T2.innerText.trim());  // Log official recording content from T2
-            } else {
-                isRecording = false;
-                recordButton.textContent = 'Start Trial Recording';
-                officialRecordButton.classList.remove('disabled');
-                logToGoogleSheet(0, transcription.innerText.trim());  // Log trial recording
-            }
-            finalTranscript = '';  // Reset final transcript
-        }
 
         function updateTriesLeft() {
             officialRecordingTries--;
@@ -273,19 +263,27 @@
             element.style.height = element.scrollHeight + 'px';
         }
 
-        function resetSilenceTimeout() {
-            clearSilenceTimeout();
-            silenceTimeout = setTimeout(() => {
-                if (isRecording || isOfficialRecording) {
-                    stopRecording(isOfficialRecording);
+        function resetInactivityTimeout() {
+            clearTimeout(inactivityTimeout);
+            inactivityTimeout = setTimeout(() => {
+                if (isRecording) {
+                    recognition.stop();
+                    isRecording = false;
+                    recordButton.textContent = 'Start Trial Recording';
+                    officialRecordButton.classList.remove('disabled');
+                    logToGoogleSheet(0, transcription.innerText.trim());  // Log trial recording
+                    finalTranscript = '';  // Reset final transcript
                 }
-            }, SILENCE_LIMIT);
-        }
-
-        function clearSilenceTimeout() {
-            if (silenceTimeout) {
-                clearTimeout(silenceTimeout);
-            }
+                if (isOfficialRecording) {
+                    recognition.stop();
+                    isOfficialRecording = false;
+                    officialRecordButton.textContent = 'Start Official Recording';
+                    recordButton.classList.remove('disabled');
+                    updateTriesLeft();
+                    logToGoogleSheet(1, T2.innerText.trim());  // Log official recording content from T2
+                    finalTranscript = '';  // Reset final transcript
+                }
+            }, 30000); // 30 seconds of inactivity
         }
     </script>
 </body>
