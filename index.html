@@ -1,207 +1,78 @@
-
-Copy code
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Voice Recorder with Speech to Text</title>
-    <style>
-        #status {
-            font-size: 1.2em;
-            margin-top: 10px;
-        }
-        .microphone-icon {
-            font-size: 2em;
-            color: red;
-        }
-        #transcription, #officialTranscription {
-            margin-top: 20px;
-            border: 1px solid #ccc;
-            padding: 10px;
-            width: 100%;
-            min-height: 50px;
-            box-sizing: border-box;
-        }
-        .disabled {
-            opacity: 0.5;
-            pointer-events: none;
-        }
-    </style>
+    <title>Audio Tracker</title>
 </head>
 <body>
-    <h2>Trial Recording</h2>
-    <button id="recordButton">Start Trial Recording</button>
-    <div id="status"></div>
-    <div id="transcription"></div>
-
-    <h2>Official Recording</h2>
-    <h2 id="triesLeftDisplay">X attempts left.</h2>
-    <button id="officialRecordButton" class="disabled">Start Official Recording</button>
-    <div id="officialStatus"></div>
-    <div id="officialTranscription"></div>
-
+    <h1>Audio Tracker</h1>
+    <audio id="audio1" controls>
+        <source src="https://englishhiro.github.io/AudioFolder/1.wav" type="audio/wav">
+        Your browser does not support the audio element.
+    </audio>
+    <br>
+    <audio id="audio2" controls>
+        <source src="https://englishhiro.github.io/AudioFolder/3.wav" type="audio/wav">
+        Your browser does not support the audio element.
+    </audio>
+    <br>
+    <audio id="audio3" controls>
+        <source src="https://englishhiro.github.io/AudioFolder/4.mp3" type="audio/mpeg">
+        Your browser does not support the audio element.
+    </audio>
+    
     <script>
-        const recordButton = document.getElementById('recordButton');
-        const officialRecordButton = document.getElementById('officialRecordButton');
-        const status = document.getElementById('status');
-        const transcription = document.getElementById('transcription');
-        const officialStatus = document.getElementById('officialStatus');
-        const officialTranscription = document.getElementById('officialTranscription');
-        const triesLeftDisplay = document.getElementById('triesLeftDisplay');
-        let isRecording = false;
-        let isOfficialRecording = false;
-        let recognition;
-        let clearTimeoutId;
-        let officialStartTime;
-        let officialEndTime;
-
-        // Load tries from localStorage or initialize if not present
-        let officialRecordingTries = parseInt(localStorage.getItem('officialRecordingTries')) || 5;
-        let lastResetTime = parseInt(localStorage.getItem('lastResetTime')) || Date.now();
-        const ONE_DAY_MS = 24 * 60 * 60 * 1000;
-
-        function checkReset() {
-            const currentTime = Date.now();
-            if (currentTime - lastResetTime > ONE_DAY_MS) {
-                officialRecordingTries = 5;
-                lastResetTime = currentTime;
-                localStorage.setItem('lastResetTime', lastResetTime.toString());
-                localStorage.setItem('officialRecordingTries', officialRecordingTries.toString());
-            }
-        }
-
-        function updateTriesLeftDisplay() {
-            triesLeftDisplay.textContent = `${officialRecordingTries} attempts left.`;
-            if (officialRecordingTries <= 0) {
-                officialRecordButton.classList.add('disabled');
-            } else {
-                officialRecordButton.classList.remove('disabled');
-            }
-        }
-
-        checkReset();
-        updateTriesLeftDisplay();
-
-        if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-            recognition = new SpeechRecognition();
-            recognition.continuous = true;
-            recognition.interimResults = true;
-            recognition.lang = 'en-US';
-
-            recognition.onstart = function() {
-                clearTimeout(clearTimeoutId);
-                if (isOfficialRecording) {
-                    officialStartTime = new Date().getTime();
-                    officialStatus.innerHTML = 'Recording... <span class="microphone-icon">🎤</span>';
-                } else {
-                    status.innerHTML = 'Recording... <span class="microphone-icon">🎤</span>';
-                }
-            };
-
-            recognition.onresult = function(event) {
-                clearTimeout(clearTimeoutId);
-                let transcript = '';
-                for (let i = event.resultIndex; i < event.results.length; ++i) {
-                    transcript += event.results[i][0].transcript;
-                }
-                if (isOfficialRecording) {
-                    officialTranscription.innerText = transcript;
-                } else {
-                    transcription.innerText = transcript;
-                }
-            };
-
-            recognition.onerror = function(event) {
-                console.error(event.error);
-            };
-
-            recognition.onend = function() {
-                if (isRecording || isOfficialRecording) {
-                    recognition.start();
-                } else {
-                    clearTimeoutId = setTimeout(clearTranscriptions, 10000);
-                    status.innerHTML = '';
-                    officialStatus.innerHTML = '';
-                }
-            };
-        } else {
-            alert('Speech Recognition API is not supported in this browser.');
-        }
-
-        recordButton.addEventListener('click', () => {
-            if (isRecording) {
-                recognition.stop();
-                isRecording = false;
-                recordButton.textContent = 'Start Trial Recording';
-                officialRecordButton.classList.remove('disabled');
-            } else {
-                recognition.start();
-                isRecording = true;
-                recordButton.textContent = 'Stop Trial Recording';
-                officialRecordButton.classList.add('disabled');
-                clearTimeout(clearTimeoutId);
-            }
-        });
-
-        officialRecordButton.addEventListener('click', () => {
-            if (!officialRecordButton.classList.contains('disabled')) {
-                if (isOfficialRecording) {
-                    recognition.stop();
-                    isOfficialRecording = false;
-                    officialEndTime = new Date().getTime();
-                    officialRecordButton.textContent = 'Start Official Recording';
-                    recordButton.classList.remove('disabled');
-                    logRecordingData();
-                    updateTriesLeft();
-                } else {
-                    if (officialRecordingTries > 0) {
-                        recognition.start();
-                        isOfficialRecording = true;
-                        officialRecordButton.textContent = 'Stop Official Recording';
-                        recordButton.classList.add('disabled');
-                        clearTimeout(clearTimeoutId);
-                    }
-                }
-            }
-        });
-
-        function updateTriesLeft() {
-            officialRecordingTries--;
-            localStorage.setItem('officialRecordingTries', officialRecordingTries.toString());
-            updateTriesLeftDisplay();
-        }
-
-        function clearTranscriptions() {
-            transcription.innerText = '';
-            officialTranscription.innerText = '';
-        }
-
-        function logRecordingData() {
-            const duration = (officialEndTime - officialStartTime) / 1000; // Calculate duration in seconds
+        function logListeningData(audioId, user, audioFile, duration) {
+            const url = 'https://script.google.com/macros/s/AKfycbwB8fv1zLSdqthF8uph-hSKg0zasrqHbGhX1KDN4Q8M-OVrltlGkYeG8uMfP0PBG97e/exec';
             const data = {
                 timestamp: new Date().toISOString(),
-                user: 'exampleUser', // Replace with actual user identification
-                exerciseId: '01',
+                user: user,
+                audioFile: audioFile,
                 duration: duration
             };
-
-            fetch('https://script.google.com/macros/s/AKfycbwjMyxODe6gm0732BHtOkvkDke0E4U79jTUCO0eldsAY2ho6y__RdPKultNtmWzp7uALA/exec', {
+            
+            fetch(url, {
                 method: 'POST',
                 mode: 'no-cors',
                 headers: {
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify(data)
-            })
-            .then(response => {
+            }).then(response => {
                 console.log('Data logged successfully:', data);
-            })
-            .catch(error => {
+            }).catch(error => {
                 console.error('Error logging data:', error);
             });
         }
+
+        document.addEventListener('DOMContentLoaded', (event) => {
+            const user = 'User1'; // Replace with dynamic user info if needed
+
+            const audioElements = document.querySelectorAll('audio');
+            audioElements.forEach(audio => {
+                let startTime;
+                audio.addEventListener('play', () => {
+                    startTime = new Date().getTime();
+                });
+
+                audio.addEventListener('pause', () => {
+                    if (startTime) {
+                        const duration = (new Date().getTime() - startTime) / 1000;
+                        logListeningData(audio.id, user, audio.querySelector('source').src, duration);
+                        startTime = null;
+                    }
+                });
+
+                audio.addEventListener('ended', () => {
+                    if (startTime) {
+                        const duration = (new Date().getTime() - startTime) / 1000;
+                        logListeningData(audio.id, user, audio.querySelector('source').src, duration);
+                        startTime = null;
+                    }
+                });
+            });
+        });
     </script>
 </body>
 </html>
