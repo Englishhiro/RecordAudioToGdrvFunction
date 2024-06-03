@@ -30,7 +30,7 @@
             border: 2px solid #000;
             padding: 12px;
             border-radius: 15px;
-            background-color: #e1f7e1;
+            background-color: #fffeff;
             margin-top: 20px;
             width: 100%;
             min-height: 60px;
@@ -47,7 +47,7 @@
             min-height: 60px;
             box-sizing: border-box;
             border-radius: 15px;
-            background-color: #e1f7e1;
+            background-color: #fffeff;
             overflow-y: hidden;
             resize: none;
         }
@@ -61,7 +61,7 @@
     <h2>Trial Recording</h2>
     <button id="recordButton">Start Trial Recording</button>
     <div id="status"></div>
-    <div id="transcription" class="bubble-text"></div>
+    <div id="transcription" class="bubble-text" id="T0"></div>
     <div id="Tx" class="bubble-text"></div>
 
     <h2>Official Recording</h2>
@@ -138,19 +138,16 @@
                 for (let i = event.resultIndex; i < event.results.length; ++i) {
                     if (event.results[i].isFinal) {
                         finalTranscript += event.results[i][0].transcript + '. ';
-                        if (isOfficialRecording) {
-                            T2.innerText = finalTranscript.trim().replace(/\.\s*\./g, '. ');
-                        } else {
-                            Tx.innerText = finalTranscript.trim().replace(/\.\s*\./g, '. ');
-                        }
                     } else {
                         interimTranscript += event.results[i][0].transcript;
                     }
                 }
                 if (isOfficialRecording) {
                     officialTranscription.innerText = interimTranscript;
+                    T2.innerText = finalTranscript.trim().replace(/\.\s*\./g, '. ');
                 } else {
                     transcription.innerText = interimTranscript;
+                    Tx.innerText = finalTranscript.trim().replace(/\.\s*\./g, '. ');
                 }
                 autoExpand(T2);
                 autoExpand(Tx);
@@ -178,7 +175,7 @@
                 isRecording = false;
                 recordButton.textContent = 'Start Trial Recording';
                 officialRecordButton.classList.remove('disabled');
-                logToGoogleSheet(0, finalTranscript.trim());  // Log trial recording
+                logToGoogleSheet(0, transcription.innerText.trim());  // Log trial recording
                 finalTranscript = '';  // Reset final transcript
             } else {
                 recognition.start();
@@ -248,14 +245,4 @@
         }
 
         function calculateDuration() {
-            // Implement your duration calculation logic here
-            return 0;  // Placeholder
-        }
-
-        function autoExpand(element) {
-            element.style.height = 'auto';
-            element.style.height = element.scrollHeight + 'px';
-        }
-    </script>
-</body>
-</html>
+           
