@@ -87,6 +87,7 @@
         let finalTranscript = '';
         let interimTranscript = '';
         let inactivityTimeout;
+        let shouldRestartRecognition = true;
 
         // Replace with actual user and exercise ID
         const user = "test_user";
@@ -161,10 +162,13 @@
 
             recognition.onerror = function(event) {
                 console.error(event.error);
+                if (event.error === 'no-speech') {
+                    recognition.stop();
+                }
             };
 
             recognition.onend = function() {
-                if (isRecording || isOfficialRecording) {
+                if ((isRecording || isOfficialRecording) && shouldRestartRecognition) {
                     recognition.start();
                 } else {
                     status.innerHTML = '';
@@ -178,6 +182,7 @@
 
         recordButton.addEventListener('click', () => {
             if (isRecording) {
+                shouldRestartRecognition = false;
                 recognition.stop();
                 isRecording = false;
                 recordButton.textContent = 'Start Trial Recording';
@@ -186,6 +191,7 @@
                 finalTranscript = '';  // Reset final transcript
                 clearTimeout(inactivityTimeout);
             } else {
+                shouldRestartRecognition = true;
                 recognition.start();
                 isRecording = true;
                 recordButton.textContent = 'Stop Trial Recording';
@@ -198,6 +204,7 @@
         officialRecordButton.addEventListener('click', () => {
             if (!officialRecordButton.classList.contains('disabled')) {
                 if (isOfficialRecording) {
+                    shouldRestartRecognition = false;
                     recognition.stop();
                     isOfficialRecording = false;
                     officialRecordButton.textContent = 'Start Official Recording';
@@ -208,6 +215,7 @@
                     clearTimeout(inactivityTimeout);
                 } else {
                     if (officialRecordingTries > 0) {
+                        shouldRestartRecognition = true;
                         recognition.start();
                         isOfficialRecording = true;
                         officialRecordButton.textContent = 'Stop Official Recording';
@@ -237,54 +245,4 @@
                 transcript
             };
 
-            fetch('https://script.google.com/macros/s/AKfycbyQC_QGHgBc1gGNQdZRIyXwDWGos__XU208RqwBHukndYm-rrsosqSYI3qsYJQAACmNxQ/exec', {
-                method: 'POST',
-                mode: 'no-cors',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(data)
-            })
-            .then(response => {
-                console.log('Data logged to Google Sheet', response);
-            })
-            .catch(error => {
-                console.error('Error logging to Google Sheet', error);
-            });
-        }
-
-        function calculateDuration() {
-            // Implement your duration calculation logic here
-            return 0;  // Placeholder
-        }
-
-        function autoExpand(element) {
-            element.style.height = 'auto';
-            element.style.height = element.scrollHeight + 'px';
-        }
-
-        function resetInactivityTimeout() {
-            clearTimeout(inactivityTimeout);
-            inactivityTimeout = setTimeout(() => {
-                if (isRecording) {
-                    recognition.stop();
-                    isRecording = false;
-                    recordButton.textContent = 'Start Trial Recording';
-                    officialRecordButton.classList.remove('disabled');
-                    logToGoogleSheet(0, transcription.innerText.trim());  // Log trial recording
-                    finalTranscript = '';  // Reset final transcript
-                }
-                if (isOfficialRecording) {
-                    recognition.stop();
-                    isOfficialRecording = false;
-                    officialRecordButton.textContent = 'Start Official Recording';
-                    recordButton.classList.remove('disabled');
-                    updateTriesLeft();
-                    logToGoogleSheet(1, T2.innerText.trim());  // Log official recording content from T2
-                    finalTranscript = '';  // Reset final transcript
-                }
-            }, 30000); // 30 seconds of inactivity
-        }
-    </script>
-</body>
-</html>
+            fetch('https://script.google.com/macros/s/AKfycbyQC_QGHgBc1gGNQdZRIyXwDWGos__XU208RqwBHukndYm-rrsosqSYI3
