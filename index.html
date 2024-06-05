@@ -53,6 +53,7 @@
         let clearTimeoutId;
         let inactivityTimeoutId;
         let shouldRestartRecognition = true;
+        let recordingStartTime;
 
         // Replace with actual user and exercise ID
         const user = "test_user";
@@ -95,6 +96,7 @@
             recognition.onstart = function() {
                 clearTimeout(clearTimeoutId);
                 clearTimeout(inactivityTimeoutId);
+                recordingStartTime = Date.now();
                 if (isOfficialRecording) {
                     officialStatus.innerHTML = 'Recording... <span class="microphone-icon">🎤</span>';
                 } else {
@@ -190,54 +192,4 @@
                     officialRecordButton.textContent = 'Start Official Recording';
                     recordButton.classList.remove('disabled');
                     updateTriesLeft();
-                    logToGoogleSheet(1, officialTranscription.innerText);  // Log official recording
-                }
-            }
-        }
-
-        function updateTriesLeft() {
-            officialRecordingTries--;
-            localStorage.setItem('officialRecordingTries', officialRecordingTries.toString());
-            updateTriesLeftDisplay();
-        }
-
-        function clearTranscriptions() {
-            transcription.innerText = '';
-            officialTranscription.innerText = '';
-        }
-
-        function logToGoogleSheet(isOfficial, transcript) {
-            const timestamp = new Date().toISOString();
-            const duration = calculateDuration();  // Placeholder, implement duration calculation
-            const data = {
-                timestamp,
-                user,
-                exerciseId,
-                duration,
-                isOfficial,
-                transcript
-            };
-
-            fetch('https://script.google.com/macros/s/AKfycbwFAzJmVCqtd-HOHmu4J7gqxWZnyzrY5pAYlRMu8A-kvGIcEhOkeYygbYo1pEunoisC/exec', {
-                method: 'POST',
-                mode: 'no-cors',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(data)
-            })
-            .then(response => {
-                console.log('Data logged to Google Sheet', response);
-            })
-            .catch(error => {
-                console.error('Error logging to Google Sheet', error);
-            });
-        }
-
-        function calculateDuration() {
-            // Implement your duration calculation logic here
-            return 0;  // Placeholder
-        }
-    </script>
-</body>
-</html>
+                    logToGoogleSheet(1
