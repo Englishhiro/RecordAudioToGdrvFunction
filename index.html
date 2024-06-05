@@ -51,7 +51,6 @@
         let isOfficialRecording = false;
         let recognition;
         let clearTimeoutId;
-        let shouldRestartRecognition = true;
 
         // Replace with actual user and exercise ID
         const user = "test_user";
@@ -91,21 +90,8 @@
             recognition.interimResults = true;
             recognition.lang = 'en-US';
 
-            let silenceTimer;
-            const SILENCE_TIMEOUT_MS = 5000; // Stop recording after 5 seconds of silence
-
-            function resetSilenceTimer() {
-                clearTimeout(silenceTimer);
-                silenceTimer = setTimeout(() => {
-                    shouldRestartRecognition = false;
-                    recognition.stop();
-                    handleRecordingStopped();
-                }, SILENCE_TIMEOUT_MS);
-            }
-
             recognition.onstart = function() {
                 clearTimeout(clearTimeoutId);
-                resetSilenceTimer();
                 if (isOfficialRecording) {
                     officialStatus.innerHTML = 'Recording... <span class="microphone-icon">🎤</span>';
                 } else {
@@ -115,7 +101,6 @@
 
             recognition.onresult = function(event) {
                 clearTimeout(clearTimeoutId);
-                resetSilenceTimer();
                 let transcript = '';
                 for (let i = event.resultIndex; i < event.results.length; ++i) {
                     transcript += event.results[i][0].transcript;
@@ -132,7 +117,7 @@
             };
 
             recognition.onend = function() {
-                if (shouldRestartRecognition && (isRecording || isOfficialRecording)) {
+                if (isRecording || isOfficialRecording) {
                     recognition.start();
                 } else {
                     clearTimeoutId = setTimeout(clearTranscriptions, 10000);
@@ -146,12 +131,12 @@
 
         recordButton.addEventListener('click', () => {
             if (isRecording) {
-                shouldRestartRecognition = false;
                 recognition.stop();
-                handleRecordingStopped();
-                logToGoogleSheet(0, transcription.innerText.trim());  // Log trial recording
+                isRecording = false;
+                recordButton.textContent = 'Start Trial Recording';
+                officialRecordButton.classList.remove('disabled');
+                logToGoogleSheet(0, transcription.innerText);  // Log trial recording
             } else {
-                shouldRestartRecognition = true;
                 recognition.start();
                 isRecording = true;
                 recordButton.textContent = 'Stop Trial Recording';
@@ -163,14 +148,14 @@
         officialRecordButton.addEventListener('click', () => {
             if (!officialRecordButton.classList.contains('disabled')) {
                 if (isOfficialRecording) {
-                    shouldRestartRecognition = false;
                     recognition.stop();
-                    handleRecordingStopped();
+                    isOfficialRecording = false;
+                    officialRecordButton.textContent = 'Start Official Recording';
+                    recordButton.classList.remove('disabled');
                     updateTriesLeft();
-                    logToGoogleSheet(1, officialTranscription.innerText.trim());  // Log official recording content
+                    logToGoogleSheet(1, officialTranscription.innerText);  // Log official recording
                 } else {
                     if (officialRecordingTries > 0) {
-                        shouldRestartRecognition = true;
                         recognition.start();
                         isOfficialRecording = true;
                         officialRecordButton.textContent = 'Stop Official Recording';
@@ -187,6 +172,11 @@
             updateTriesLeftDisplay();
         }
 
+        function clearTranscriptions() {
+            transcription.innerText = '';
+            officialTranscription.innerText = '';
+        }
+
         function logToGoogleSheet(isOfficial, transcript) {
             const timestamp = new Date().toISOString();
             const duration = calculateDuration();  // Placeholder, implement duration calculation
@@ -199,9 +189,9 @@
                 transcript
             };
 
-            fetch('https://script.google.com/macros/s/AKfycbyBFLjsms1JOZcRCgffixlL8v7K9JvmqHgFmeswCznBj20VpnILbSGPJRYe7CrGuMY6zg/exec', {
+            fetch('https://script.google.com/macros/s/AKfycbwFAzJmVCqtd-HOHmu4J7gqxWZnyzrY5pAYlRMu8A-kvGIcEhOkeYygbYo1pEunoisC/exec', {
                 method: 'POST',
-                mode: 'no-cors', // No CORS mode
+                mode: 'no-cors',
                 headers: {
                     'Content-Type': 'application/json'
                 },
@@ -218,29 +208,6 @@
         function calculateDuration() {
             // Implement your duration calculation logic here
             return 0;  // Placeholder
-        }
-
-        function clearTranscriptions() {
-            transcription.innerText = '';
-            officialTranscription.innerText = '';
-        }
-
-        function handleRecordingStopped() {
-            isRecording = false;
-            isOfficialRecording = false;
-            recordButton.textContent = 'Start Trial Recording';
-            officialRecordButton.textContent = 'Start Official Recording';
-            officialRecordButton.classList.remove('disabled');
-            recordButton.classList.remove('disabled');
-            clearTimeout(inactivityTimeout);
-        }
-
-        function resetInactivityTimeout() {
-            clearTimeout(inactivityTimeout);
-            inactivityTimeout = setTimeout(() => {
-                handleRecordingStopped();
-                recognition.stop();
-            }, 60000);  // Stop after 1 minute of inactivity
         }
     </script>
 </body>
