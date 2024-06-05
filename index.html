@@ -50,11 +50,15 @@
         let isRecording = false;
         let isOfficialRecording = false;
         let recognition;
+        let finalTranscript = '';
+        let interimTranscript = '';
         let clearTimeoutId;
         let shouldRestartRecognition = true;
-        let finalTranscript = '';
+        let inactivityTimeout;
 
-        const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbzqrHigukhbOkA5bErWeXX6BEZ0vTUSFE9mxuu74yVllKhEPajcTMGRLnLwZBY-bSpQyQ/exec'; // Replace with your GAS web app URL
+        // Replace with actual user and exercise ID
+        const user = "test_user";
+        const exerciseId = "exercise_1";
 
         // Load tries from localStorage or initialize if not present
         let officialRecordingTries = parseInt(localStorage.getItem('officialRecordingTries')) || 5;
@@ -110,25 +114,37 @@
                 } else {
                     status.innerHTML = 'Recording... <span class="microphone-icon">🎤</span>';
                 }
+                resetInactivityTimeout();
             };
 
             recognition.onresult = function(event) {
-                clearTimeout(clearTimeoutId);
-                resetSilenceTimer();
-                let interimTranscript = '';
+                interimTranscript = '';
                 for (let i = event.resultIndex; i < event.results.length; ++i) {
-                    interimTranscript += event.results[i][0].transcript;
+                    if (event.results[i].isFinal) {
+                        finalTranscript += event.results[i][0].transcript + '. ';
+                        if (isOfficialRecording) {
+                            officialTranscription.innerText = finalTranscript.trim().replace(/\.\s*\./g, '. ');
+                        } else {
+                            transcription.innerText = finalTranscript.trim().replace(/\.\s*\./g, '. ');
+                        }
+                    } else {
+                        interimTranscript += event.results[i][0].transcript;
+                    }
                 }
-                finalTranscript = interimTranscript;
                 if (isOfficialRecording) {
                     officialTranscription.innerText = interimTranscript;
                 } else {
                     transcription.innerText = interimTranscript;
                 }
+                resetSilenceTimer();
+                resetInactivityTimeout();
             };
 
             recognition.onerror = function(event) {
                 console.error(event.error);
+                if (event.error === 'no-speech') {
+                    handleNoSpeechError();
+                }
             };
 
             recognition.onend = function() {
@@ -138,8 +154,8 @@
                     clearTimeoutId = setTimeout(clearTranscriptions, 10000);
                     status.innerHTML = '';
                     officialStatus.innerHTML = '';
-                    sendTranscriptionData(finalTranscript, isOfficialRecording);
                 }
+                clearTimeout(inactivityTimeout);
             };
         } else {
             alert('Speech Recognition API is not supported in this browser.');
@@ -150,12 +166,16 @@
                 shouldRestartRecognition = false;
                 recognition.stop();
                 handleRecordingStopped();
+                logToGoogleSheet(false, finalTranscript.trim());  // Log trial recording
+                finalTranscript = '';  // Reset final transcript
+                clearTimeout(inactivityTimeout);
             } else {
                 shouldRestartRecognition = true;
                 recognition.start();
                 isRecording = true;
                 recordButton.textContent = 'Stop Trial Recording';
                 officialRecordButton.classList.add('disabled');
+                finalTranscript = '';  // Reset final transcript
                 clearTimeout(clearTimeoutId);
             }
         });
@@ -167,6 +187,9 @@
                     recognition.stop();
                     handleRecordingStopped();
                     updateTriesLeft();
+                    logToGoogleSheet(true, finalTranscript.trim());  // Log official recording
+                    finalTranscript = '';  // Reset final transcript
+                    clearTimeout(inactivityTimeout);
                 } else {
                     if (officialRecordingTries > 0) {
                         shouldRestartRecognition = true;
@@ -174,16 +197,70 @@
                         isOfficialRecording = true;
                         officialRecordButton.textContent = 'Stop Official Recording';
                         recordButton.classList.add('disabled');
+                        finalTranscript = '';  // Reset final transcript
                         clearTimeout(clearTimeoutId);
                     }
                 }
             }
         });
 
+        function handleNoSpeechError() {
+            if (isRecording) {
+                shouldRestartRecognition = false;
+                recognition.stop();
+                handleRecordingStopped();
+                logToGoogleSheet(false, finalTranscript.trim());  // Log trial recording
+                finalTranscript = '';  // Reset final transcript
+                clearTimeout(inactivityTimeout);
+            }
+            if (isOfficialRecording) {
+                shouldRestartRecognition = false;
+                recognition.stop();
+                handleRecordingStopped();
+                updateTriesLeft();
+                logToGoogleSheet(true, finalTranscript.trim());  // Log official recording
+                finalTranscript = '';  // Reset final transcript
+                clearTimeout(inactivityTimeout);
+            }
+        }
+
         function updateTriesLeft() {
             officialRecordingTries--;
             localStorage.setItem('officialRecordingTries', officialRecordingTries.toString());
             updateTriesLeftDisplay();
+        }
+
+        function logToGoogleSheet(isOfficial, transcript) {
+            const timestamp = new Date().toISOString();
+            const duration = calculateDuration();  // Implement duration calculation
+            const data = {
+                timestamp,
+                user,
+                exerciseId,
+                duration,
+                isOfficial,
+                transcript
+            };
+
+            fetch('https://script.google.com/macros/s/AKfycbwrW46B-QIZ2404cOsn4VUH93L2dypJXfvFupQ1uKJrMT2qmVrbEXI5W-MPGnna_hX5hg/exec', {
+                method: 'POST',
+                mode: 'no-cors', // No CORS mode
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            })
+            .then(response => {
+                console.log('Data logged to Google Sheet', response);
+            })
+            .catch(error => {
+                console.error('Error logging to Google Sheet', error);
+            });
+        }
+
+        function calculateDuration() {
+            // Implement your duration calculation logic here
+            return 0;  // Placeholder
         }
 
         function clearTranscriptions() {
@@ -198,31 +275,15 @@
             officialRecordButton.textContent = 'Start Official Recording';
             officialRecordButton.classList.remove('disabled');
             recordButton.classList.remove('disabled');
+            clearTimeout(inactivityTimeout);
         }
 
-        function sendTranscriptionData(transcriptionText, isOfficial) {
-            const data = {
-                user: 'User1', // Replace with actual user data
-                exerciseId: 'Exercise1', // Replace with actual exercise ID
-                duration: 'Duration', // Replace with actual duration data
-                officialState: isOfficial,
-                transcription: transcriptionText
-            };
-            
-            fetch(GAS_WEB_APP_URL, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(data)
-            })
-            .then(response => response.json())
-            .then(responseData => {
-                console.log('Success:', responseData);
-            })
-            .catch(error => {
-                console.error('Error:', error);
-            });
+        function resetInactivityTimeout() {
+            clearTimeout(inactivityTimeout);
+            inactivityTimeout = setTimeout(() => {
+                handleRecordingStopped();
+                recognition.stop();
+            }, 60000);  // Stop after 1 minute of inactivity
         }
     </script>
 </body>
