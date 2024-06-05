@@ -50,11 +50,8 @@
         let isRecording = false;
         let isOfficialRecording = false;
         let recognition;
-        let finalTranscript = '';
-        let interimTranscript = '';
         let clearTimeoutId;
         let shouldRestartRecognition = true;
-        let inactivityTimeout;
 
         // Replace with actual user and exercise ID
         const user = "test_user";
@@ -114,37 +111,24 @@
                 } else {
                     status.innerHTML = 'Recording... <span class="microphone-icon">🎤</span>';
                 }
-                resetInactivityTimeout();
             };
 
             recognition.onresult = function(event) {
-                interimTranscript = '';
+                clearTimeout(clearTimeoutId);
+                resetSilenceTimer();
+                let transcript = '';
                 for (let i = event.resultIndex; i < event.results.length; ++i) {
-                    if (event.results[i].isFinal) {
-                        finalTranscript += event.results[i][0].transcript + '. ';
-                        if (isOfficialRecording) {
-                            officialTranscription.innerText = finalTranscript.trim().replace(/\.\s*\./g, '. ');
-                        } else {
-                            transcription.innerText = finalTranscript.trim().replace(/\.\s*\./g, '. ');
-                        }
-                    } else {
-                        interimTranscript += event.results[i][0].transcript;
-                    }
+                    transcript += event.results[i][0].transcript;
                 }
                 if (isOfficialRecording) {
-                    officialTranscription.innerText = interimTranscript;
+                    officialTranscription.innerText = transcript;
                 } else {
-                    transcription.innerText = interimTranscript;
+                    transcription.innerText = transcript;
                 }
-                resetSilenceTimer();
-                resetInactivityTimeout();
             };
 
             recognition.onerror = function(event) {
                 console.error(event.error);
-                if (event.error === 'no-speech') {
-                    handleNoSpeechError();
-                }
             };
 
             recognition.onend = function() {
@@ -155,7 +139,6 @@
                     status.innerHTML = '';
                     officialStatus.innerHTML = '';
                 }
-                clearTimeout(inactivityTimeout);
             };
         } else {
             alert('Speech Recognition API is not supported in this browser.');
@@ -166,16 +149,13 @@
                 shouldRestartRecognition = false;
                 recognition.stop();
                 handleRecordingStopped();
-                logToGoogleSheet(false, finalTranscript.trim());  // Log trial recording
-                finalTranscript = '';  // Reset final transcript
-                clearTimeout(inactivityTimeout);
+                logToGoogleSheet(0, transcription.innerText.trim());  // Log trial recording
             } else {
                 shouldRestartRecognition = true;
                 recognition.start();
                 isRecording = true;
                 recordButton.textContent = 'Stop Trial Recording';
                 officialRecordButton.classList.add('disabled');
-                finalTranscript = '';  // Reset final transcript
                 clearTimeout(clearTimeoutId);
             }
         });
@@ -187,9 +167,7 @@
                     recognition.stop();
                     handleRecordingStopped();
                     updateTriesLeft();
-                    logToGoogleSheet(true, finalTranscript.trim());  // Log official recording
-                    finalTranscript = '';  // Reset final transcript
-                    clearTimeout(inactivityTimeout);
+                    logToGoogleSheet(1, officialTranscription.innerText.trim());  // Log official recording content
                 } else {
                     if (officialRecordingTries > 0) {
                         shouldRestartRecognition = true;
@@ -197,32 +175,11 @@
                         isOfficialRecording = true;
                         officialRecordButton.textContent = 'Stop Official Recording';
                         recordButton.classList.add('disabled');
-                        finalTranscript = '';  // Reset final transcript
                         clearTimeout(clearTimeoutId);
                     }
                 }
             }
         });
-
-        function handleNoSpeechError() {
-            if (isRecording) {
-                shouldRestartRecognition = false;
-                recognition.stop();
-                handleRecordingStopped();
-                logToGoogleSheet(false, finalTranscript.trim());  // Log trial recording
-                finalTranscript = '';  // Reset final transcript
-                clearTimeout(inactivityTimeout);
-            }
-            if (isOfficialRecording) {
-                shouldRestartRecognition = false;
-                recognition.stop();
-                handleRecordingStopped();
-                updateTriesLeft();
-                logToGoogleSheet(true, finalTranscript.trim());  // Log official recording
-                finalTranscript = '';  // Reset final transcript
-                clearTimeout(inactivityTimeout);
-            }
-        }
 
         function updateTriesLeft() {
             officialRecordingTries--;
@@ -232,7 +189,7 @@
 
         function logToGoogleSheet(isOfficial, transcript) {
             const timestamp = new Date().toISOString();
-            const duration = calculateDuration();  // Implement duration calculation
+            const duration = calculateDuration();  // Placeholder, implement duration calculation
             const data = {
                 timestamp,
                 user,
@@ -242,21 +199,21 @@
                 transcript
             };
 
-           fetch('https://script.google.com/macros/s/AKfycbyBFLjsms1JOZcRCgffixlL8v7K9JvmqHgFmeswCznBj20VpnILbSGPJRYe7CrGuMY6zg/exec', {
-    method: 'POST',
-    mode: 'no-cors', // No CORS mode
-    headers: {
-        'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(data)
-})
-.then(response => {
-    console.log('Data logged to Google Sheet', response);
-})
-.catch(error => {
-    console.error('Error logging to Google Sheet', error);
-});
-
+            fetch('https://script.google.com/macros/s/AKfycbyBFLjsms1JOZcRCgffixlL8v7K9JvmqHgFmeswCznBj20VpnILbSGPJRYe7CrGuMY6zg/exec', {
+                method: 'POST',
+                mode: 'no-cors', // No CORS mode
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            })
+            .then(response => {
+                console.log('Data logged to Google Sheet', response);
+            })
+            .catch(error => {
+                console.error('Error logging to Google Sheet', error);
+            });
+        }
 
         function calculateDuration() {
             // Implement your duration calculation logic here
