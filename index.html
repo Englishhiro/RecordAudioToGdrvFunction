@@ -63,6 +63,9 @@
         let lastResetTime = parseInt(localStorage.getItem('lastResetTime')) || Date.now();
         const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
+        let startRecordingTime;
+        let endRecordingTime;
+
         function checkReset() {
             const currentTime = Date.now();
             if (currentTime - lastResetTime > ONE_DAY_MS) {
@@ -140,13 +143,15 @@
                 shouldRestartRecognition = false;
                 recognition.stop();
                 isRecording = false;
+                endRecordingTime = new Date().toISOString();
                 recordButton.textContent = 'Start Trial Recording';
                 officialRecordButton.classList.remove('disabled');
-                logToGoogleSheet(0, transcription.innerText);  // Log trial recording
+                logToGoogleSheet(0, transcription.innerText, startRecordingTime, endRecordingTime);  // Log trial recording
             } else {
                 shouldRestartRecognition = true;
                 recognition.start();
                 isRecording = true;
+                startRecordingTime = new Date().toISOString();
                 recordButton.textContent = 'Stop Trial Recording';
                 officialRecordButton.classList.add('disabled');
                 clearTimeout(clearTimeoutId);
@@ -159,15 +164,17 @@
                     shouldRestartRecognition = false;
                     recognition.stop();
                     isOfficialRecording = false;
+                    endRecordingTime = new Date().toISOString();
                     officialRecordButton.textContent = 'Start Official Recording';
                     recordButton.classList.remove('disabled');
                     updateTriesLeft();
-                    logToGoogleSheet(1, officialTranscription.innerText);  // Log official recording
+                    logToGoogleSheet(1, officialTranscription.innerText, startRecordingTime, endRecordingTime);  // Log official recording
                 } else {
                     if (officialRecordingTries > 0) {
                         shouldRestartRecognition = true;
                         recognition.start();
                         isOfficialRecording = true;
+                        startRecordingTime = new Date().toISOString();
                         officialRecordButton.textContent = 'Stop Official Recording';
                         recordButton.classList.add('disabled');
                         clearTimeout(clearTimeoutId);
@@ -182,15 +189,17 @@
                 recognition.stop();
                 if (isRecording) {
                     isRecording = false;
+                    endRecordingTime = new Date().toISOString();
                     recordButton.textContent = 'Start Trial Recording';
                     officialRecordButton.classList.remove('disabled');
-                    logToGoogleSheet(0, transcription.innerText);  // Log trial recording
+                    logToGoogleSheet(0, transcription.innerText, startRecordingTime, endRecordingTime);  // Log trial recording
                 } else if (isOfficialRecording) {
                     isOfficialRecording = false;
+                    endRecordingTime = new Date().toISOString();
                     officialRecordButton.textContent = 'Start Official Recording';
                     recordButton.classList.remove('disabled');
                     updateTriesLeft();
-                    logToGoogleSheet(1, officialTranscription.innerText);  // Log official recording
+                    logToGoogleSheet(1, officialTranscription.innerText, startRecordingTime, endRecordingTime);  // Log official recording
                 }
             }
         }
@@ -206,19 +215,18 @@
             officialTranscription.innerText = '';
         }
 
-        function logToGoogleSheet(isOfficial, transcript) {
-            const timestamp = new Date().toISOString();
-            const duration = calculateDuration();  // Placeholder, implement duration calculation
+        function logToGoogleSheet(isOfficial, transcript, startTime, stopTime) {
             const data = {
-                timestamp,
+                startRecordingTime: startTime,
+                endRecordingTime: stopTime,
                 user,
                 exerciseId,
-                duration,
+                duration: calculateDuration(),  // Duration in seconds
                 isOfficial,
                 transcript
             };
 
-            fetch('https://script.google.com/macros/s/AKfycbwFAzJmVCqtd-HOHmu4J7gqxWZnyzrY5pAYlRMu8A-kvGIcEhOkeYygbYo1pEunoisC/exec', {
+            fetch('https://script.google.com/macros/s/AKfycbxcxjKCbrz4HMBaHu9tqR2d-uGKyKV4bRHYFhgMcdo-ZHoMvGfvFax5wXyw4mV5ejLGlg/exec', {
                 method: 'POST',
                 mode: 'no-cors',
                 headers: {
@@ -233,37 +241,37 @@
                 console.error('Error logging to Google Sheet', error);
             });
         }
- // Define variables to track recording start and end times
-    let recordingStartTime;
-    let recordingEndTime;
 
-    recognition.onstart = function() {
-        // Set recording start time when recording starts
-        recordingStartTime = Date.now();
-        // Other code remains the same...
-    };
+        // Define variables to track recording start and end times
+        let recordingStartTime;
+        let recordingEndTime;
 
-    recognition.onend = function() {
-        // Set recording end time when recording ends
-        recordingEndTime = Date.now();
-        // Other code remains the same...
-    };
+        recognition.onstart = function() {
+            // Set recording start time when recording starts
+            recordingStartTime = Date.now();
+            // Other code remains the same...
+        };
 
-    function calculateDuration() {
-        // Check if both start and end times are available
-        if (recordingStartTime && recordingEndTime) {
-            // Calculate duration in milliseconds
-            const durationMs = recordingEndTime - recordingStartTime;
-            // Convert milliseconds to seconds (assuming duration is in seconds)
-            const durationSec = durationMs / 1000;
-            return durationSec;
-        } else {
-            // If either start or end time is missing, return 0
-            return 0;
+        recognition.onend = function() {
+            // Set recording end time when recording ends
+            recordingEndTime = Date.now();
+            // Other code remains the same...
+        };
+
+        function calculateDuration() {
+            // Check if both start and end times are available
+            if (recordingStartTime && recordingEndTime) {
+                // Calculate duration in milliseconds
+                const durationMs = recordingEndTime - recordingStartTime;
+                // Convert milliseconds to seconds (assuming duration is in seconds)
+                const durationSec = durationMs / 1000;
+                return durationSec;
+            } else {
+                // If either start or end time is missing, return 0
+                return 0;
+            }
         }
-    }
-     
-        
+
     </script>
 </body>
 </html>
