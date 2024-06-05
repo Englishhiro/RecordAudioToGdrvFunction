@@ -54,7 +54,7 @@
         let shouldRestartRecognition = true;
         let finalTranscript = '';
 
-        const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbzaIWrpcwfXSAjZ8re4WGt8_SJr8huyBnQw7G8C-k02NTBMo4b4GfHgfXm54XhGusTvZA/exec'; // Replace with your GAS web app URL
+        const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxTd19821km79eldcO_U4LljPdT1FDULpfqGgpLN5rwmYqj9-XcUOgZ6nDq0tK9eDnIbg/exec'; // Replace with your GAS web app URL
 
         // Load tries from localStorage or initialize if not present
         let officialRecordingTries = parseInt(localStorage.getItem('officialRecordingTries')) || 5;
@@ -200,15 +200,15 @@
             recordButton.classList.remove('disabled');
         }
 
-        function sendTranscriptionData(transcript, isOfficial) {
+        function sendTranscriptionData(transcriptionText, isOfficial) {
             const data = {
                 user: 'User1', // Replace with actual user data
                 exerciseId: 'Exercise1', // Replace with actual exercise ID
-                duration: 0, // Replace with actual duration if available
-                officialState: isOfficial ? 'official' : 'trial',
-                transcription: transcript
+                duration: 'Duration', // Replace with actual duration data
+                officialState: isOfficial,
+                transcription: transcriptionText
             };
-
+            
             fetch(GAS_WEB_APP_URL, {
                 method: 'POST',
                 mode: 'no-cors',
@@ -217,11 +217,12 @@
                 },
                 body: JSON.stringify(data)
             })
-            .then(response => {
-                console.log('Data sent to Google Sheets');
+            .then(response => response.json())
+            .then(responseData => {
+                console.log('Success:', responseData);
             })
             .catch(error => {
-                console.error('Error sending data to Google Sheets:', error);
+                console.error('Error:', error);
             });
         }
     </script>
