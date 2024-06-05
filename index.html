@@ -51,6 +51,8 @@
         let isOfficialRecording = false;
         let recognition;
         let clearTimeoutId;
+        let inactivityTimeoutId;
+        let shouldRestartRecognition = true;
 
         // Replace with actual user and exercise ID
         const user = "test_user";
@@ -92,15 +94,18 @@
 
             recognition.onstart = function() {
                 clearTimeout(clearTimeoutId);
+                clearTimeout(inactivityTimeoutId);
                 if (isOfficialRecording) {
                     officialStatus.innerHTML = 'Recording... <span class="microphone-icon">🎤</span>';
                 } else {
                     status.innerHTML = 'Recording... <span class="microphone-icon">🎤</span>';
                 }
+                inactivityTimeoutId = setTimeout(stopRecordingDueToInactivity, 5000); // Set inactivity timeout
             };
 
             recognition.onresult = function(event) {
                 clearTimeout(clearTimeoutId);
+                clearTimeout(inactivityTimeoutId);
                 let transcript = '';
                 for (let i = event.resultIndex; i < event.results.length; ++i) {
                     transcript += event.results[i][0].transcript;
@@ -110,6 +115,7 @@
                 } else {
                     transcription.innerText = transcript;
                 }
+                inactivityTimeoutId = setTimeout(stopRecordingDueToInactivity, 5000); // Reset inactivity timeout
             };
 
             recognition.onerror = function(event) {
@@ -117,7 +123,7 @@
             };
 
             recognition.onend = function() {
-                if (isRecording || isOfficialRecording) {
+                if (shouldRestartRecognition) {
                     recognition.start();
                 } else {
                     clearTimeoutId = setTimeout(clearTranscriptions, 10000);
@@ -131,12 +137,14 @@
 
         recordButton.addEventListener('click', () => {
             if (isRecording) {
+                shouldRestartRecognition = false;
                 recognition.stop();
                 isRecording = false;
                 recordButton.textContent = 'Start Trial Recording';
                 officialRecordButton.classList.remove('disabled');
                 logToGoogleSheet(0, transcription.innerText);  // Log trial recording
             } else {
+                shouldRestartRecognition = true;
                 recognition.start();
                 isRecording = true;
                 recordButton.textContent = 'Stop Trial Recording';
@@ -148,6 +156,7 @@
         officialRecordButton.addEventListener('click', () => {
             if (!officialRecordButton.classList.contains('disabled')) {
                 if (isOfficialRecording) {
+                    shouldRestartRecognition = false;
                     recognition.stop();
                     isOfficialRecording = false;
                     officialRecordButton.textContent = 'Start Official Recording';
@@ -156,6 +165,7 @@
                     logToGoogleSheet(1, officialTranscription.innerText);  // Log official recording
                 } else {
                     if (officialRecordingTries > 0) {
+                        shouldRestartRecognition = true;
                         recognition.start();
                         isOfficialRecording = true;
                         officialRecordButton.textContent = 'Stop Official Recording';
@@ -165,6 +175,25 @@
                 }
             }
         });
+
+        function stopRecordingDueToInactivity() {
+            if (isRecording || isOfficialRecording) {
+                shouldRestartRecognition = false;
+                recognition.stop();
+                if (isRecording) {
+                    isRecording = false;
+                    recordButton.textContent = 'Start Trial Recording';
+                    officialRecordButton.classList.remove('disabled');
+                    logToGoogleSheet(0, transcription.innerText);  // Log trial recording
+                } else if (isOfficialRecording) {
+                    isOfficialRecording = false;
+                    officialRecordButton.textContent = 'Start Official Recording';
+                    recordButton.classList.remove('disabled');
+                    updateTriesLeft();
+                    logToGoogleSheet(1, officialTranscription.innerText);  // Log official recording
+                }
+            }
+        }
 
         function updateTriesLeft() {
             officialRecordingTries--;
