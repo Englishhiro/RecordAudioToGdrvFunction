@@ -53,7 +53,6 @@
         let clearTimeoutId;
         let inactivityTimeoutId;
         let shouldRestartRecognition = true;
-        let recordingStartTime;
 
         // Replace with actual user and exercise ID
         const user = "test_user";
@@ -96,7 +95,6 @@
             recognition.onstart = function() {
                 clearTimeout(clearTimeoutId);
                 clearTimeout(inactivityTimeoutId);
-                recordingStartTime = Date.now();
                 if (isOfficialRecording) {
                     officialStatus.innerHTML = 'Recording... <span class="microphone-icon">🎤</span>';
                 } else {
@@ -192,4 +190,80 @@
                     officialRecordButton.textContent = 'Start Official Recording';
                     recordButton.classList.remove('disabled');
                     updateTriesLeft();
-                    logToGoogleSheet(1
+                    logToGoogleSheet(1, officialTranscription.innerText);  // Log official recording
+                }
+            }
+        }
+
+        function updateTriesLeft() {
+            officialRecordingTries--;
+            localStorage.setItem('officialRecordingTries', officialRecordingTries.toString());
+            updateTriesLeftDisplay();
+        }
+
+        function clearTranscriptions() {
+            transcription.innerText = '';
+            officialTranscription.innerText = '';
+        }
+
+        function logToGoogleSheet(isOfficial, transcript) {
+            const timestamp = new Date().toISOString();
+            const duration = calculateDuration();  // Placeholder, implement duration calculation
+            const data = {
+                timestamp,
+                user,
+                exerciseId,
+                duration,
+                isOfficial,
+                transcript
+            };
+
+            fetch('https://script.google.com/macros/s/AKfycbwFAzJmVCqtd-HOHmu4J7gqxWZnyzrY5pAYlRMu8A-kvGIcEhOkeYygbYo1pEunoisC/exec', {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            })
+            .then(response => {
+                console.log('Data logged to Google Sheet', response);
+            })
+            .catch(error => {
+                console.error('Error logging to Google Sheet', error);
+            });
+        }
+ // Define variables to track recording start and end times
+    let recordingStartTime;
+    let recordingEndTime;
+
+    recognition.onstart = function() {
+        // Set recording start time when recording starts
+        recordingStartTime = Date.now();
+        // Other code remains the same...
+    };
+
+    recognition.onend = function() {
+        // Set recording end time when recording ends
+        recordingEndTime = Date.now();
+        // Other code remains the same...
+    };
+
+    function calculateDuration() {
+        // Check if both start and end times are available
+        if (recordingStartTime && recordingEndTime) {
+            // Calculate duration in milliseconds
+            const durationMs = recordingEndTime - recordingStartTime;
+            // Convert milliseconds to seconds (assuming duration is in seconds)
+            const durationSec = durationMs / 1000;
+            return durationSec;
+        } else {
+            // If either start or end time is missing, return 0
+            return 0;
+        }
+    }
+     
+        }
+    </script>
+</body>
+</html>
