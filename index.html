@@ -13,31 +13,13 @@
             font-size: 2em;
             color: red;
         }
-        .bubble-text {
+        #transcription, #officialTranscription {
+            margin-top: 20px;
             border: 1px solid #ccc;
             padding: 10px;
-            border-radius: 10px;
-            background-color: #f1f1f1;
-            margin-top: 20px;
             width: 100%;
             min-height: 50px;
             box-sizing: border-box;
-        }
-        #transcription, #Tx {
-            width: calc(100% - 22px);
-        }
-        .official-bubble-text {
-            border: 2px solid #000;
-            padding: 12px;
-            border-radius: 15px;
-            background-color: #fffeff;
-            margin-top: 20px;
-            width: 100%;
-            min-height: 60px;
-            box-sizing: border-box;
-        }
-        .official-bubble-text-box {
-            min-height: 50px;
         }
         .disabled {
             opacity: 0.5;
@@ -49,15 +31,13 @@
     <h2>Trial Recording</h2>
     <button id="recordButton">Start Trial Recording</button>
     <div id="status"></div>
-    <div id="transcription" class="bubble-text" id="T0"></div>
-    <div id="Tx" class="bubble-text"></div>
+    <div id="transcription"></div>
 
     <h2>Official Recording</h2>
-    <h3 id="triesLeftDisplay">X attempts left.</h3>
+    <h2 id="triesLeftDisplay">X attempts left.</h2>
     <button id="officialRecordButton" class="disabled">Start Official Recording</button>
     <div id="officialStatus"></div>
-    <div id="officialTranscription" class="official-bubble-text official-bubble-text-box"></div>
-    <div id="T2" class="official-bubble-text official-bubble-text-box"></div>
+    <div id="officialTranscription"></div>
 
     <script>
         const recordButton = document.getElementById('recordButton');
@@ -66,19 +46,12 @@
         const transcription = document.getElementById('transcription');
         const officialStatus = document.getElementById('officialStatus');
         const officialTranscription = document.getElementById('officialTranscription');
-        const T2 = document.getElementById('T2');
-        const Tx = document.getElementById('Tx');
         const triesLeftDisplay = document.getElementById('triesLeftDisplay');
         let isRecording = false;
         let isOfficialRecording = false;
         let recognition;
-        let finalTranscript = '';
-        let interimTranscript = '';
-        let inactivityTimeout;
-
-        // Replace with actual user and exercise ID
-        const user = "test_user";
-        const exerciseId = "exercise_1";
+        let clearTimeoutId;
+        let shouldRestartRecognition = true;
 
         // Load tries from localStorage or initialize if not present
         let officialRecordingTries = parseInt(localStorage.getItem('officialRecordingTries')) || 5;
@@ -114,54 +87,54 @@
             recognition.interimResults = true;
             recognition.lang = 'en-US';
 
+            let silenceTimer;
+            const SILENCE_TIMEOUT_MS = 5000; // Stop recording after 5 seconds of silence
+
+            function resetSilenceTimer() {
+                clearTimeout(silenceTimer);
+                silenceTimer = setTimeout(() => {
+                    shouldRestartRecognition = false;
+                    recognition.stop();
+                    handleRecordingStopped();
+                }, SILENCE_TIMEOUT_MS);
+            }
+
             recognition.onstart = function() {
+                clearTimeout(clearTimeoutId);
+                resetSilenceTimer();
                 if (isOfficialRecording) {
                     officialStatus.innerHTML = 'Recording... <span class="microphone-icon">🎤</span>';
                 } else {
                     status.innerHTML = 'Recording... <span class="microphone-icon">🎤</span>';
                 }
-                resetInactivityTimeout();
             };
 
             recognition.onresult = function(event) {
-                interimTranscript = '';
+                clearTimeout(clearTimeoutId);
+                resetSilenceTimer();
+                let transcript = '';
                 for (let i = event.resultIndex; i < event.results.length; ++i) {
-                    if (event.results[i].isFinal) {
-                        finalTranscript += event.results[i][0].transcript + '. ';
-                        if (isOfficialRecording) {
-                            T2.innerText = finalTranscript.trim().replace(/\.\s*\./g, '. ');
-                        } else {
-                            Tx.innerText = finalTranscript.trim().replace(/\.\s*\./g, '. ');
-                        }
-                    } else {
-                        interimTranscript += event.results[i][0].transcript;
-                    }
+                    transcript += event.results[i][0].transcript;
                 }
                 if (isOfficialRecording) {
-                    officialTranscription.innerText = interimTranscript;
+                    officialTranscription.innerText = transcript;
                 } else {
-                    transcription.innerText = interimTranscript;
+                    transcription.innerText = transcript;
                 }
-                autoExpand(T2);
-                autoExpand(Tx);
-                resetInactivityTimeout();
             };
 
             recognition.onerror = function(event) {
                 console.error(event.error);
-                if (event.error === 'no-speech') {
-                    handleNoSpeechError();
-                }
             };
 
             recognition.onend = function() {
-                if (isRecording || isOfficialRecording) {
+                if (shouldRestartRecognition && (isRecording || isOfficialRecording)) {
                     recognition.start();
                 } else {
+                    clearTimeoutId = setTimeout(clearTranscriptions, 10000);
                     status.innerHTML = '';
                     officialStatus.innerHTML = '';
                 }
-                clearTimeout(inactivityTimeout);
             };
         } else {
             alert('Speech Recognition API is not supported in this browser.');
@@ -169,68 +142,38 @@
 
         recordButton.addEventListener('click', () => {
             if (isRecording) {
+                shouldRestartRecognition = false;
                 recognition.stop();
-                isRecording = false;
-                recordButton.textContent = 'Start Trial Recording';
-                officialRecordButton.classList.remove('disabled');
-                logToGoogleSheet(0, transcription.innerText.trim());  // Log trial recording
-                finalTranscript = '';  // Reset final transcript
-                clearTimeout(inactivityTimeout);
+                handleRecordingStopped();
             } else {
+                shouldRestartRecognition = true;
                 recognition.start();
                 isRecording = true;
                 recordButton.textContent = 'Stop Trial Recording';
                 officialRecordButton.classList.add('disabled');
-                Tx.innerText = '';  // Clear Tx box
-                finalTranscript = '';  // Reset final transcript
+                clearTimeout(clearTimeoutId);
             }
         });
 
         officialRecordButton.addEventListener('click', () => {
             if (!officialRecordButton.classList.contains('disabled')) {
                 if (isOfficialRecording) {
+                    shouldRestartRecognition = false;
                     recognition.stop();
-                    isOfficialRecording = false;
-                    officialRecordButton.textContent = 'Start Official Recording';
-                    recordButton.classList.remove('disabled');
+                    handleRecordingStopped();
                     updateTriesLeft();
-                    logToGoogleSheet(1, T2.innerText.trim());  // Log official recording content from T2
-                    finalTranscript = '';  // Reset final transcript
-                    clearTimeout(inactivityTimeout);
                 } else {
                     if (officialRecordingTries > 0) {
+                        shouldRestartRecognition = true;
                         recognition.start();
                         isOfficialRecording = true;
                         officialRecordButton.textContent = 'Stop Official Recording';
                         recordButton.classList.add('disabled');
-                        T2.innerText = '';  // Clear T2 box
-                        finalTranscript = '';  // Reset final transcript
+                        clearTimeout(clearTimeoutId);
                     }
                 }
             }
         });
-
-        function handleNoSpeechError() {
-            if (isRecording) {
-                recognition.stop();
-                isRecording = false;
-                recordButton.textContent = 'Start Trial Recording';
-                officialRecordButton.classList.remove('disabled');
-                logToGoogleSheet(0, transcription.innerText.trim());  // Log trial recording
-                finalTranscript = '';  // Reset final transcript
-                clearTimeout(inactivityTimeout);
-            }
-            if (isOfficialRecording) {
-                recognition.stop();
-                isOfficialRecording = false;
-                officialRecordButton.textContent = 'Start Official Recording';
-                recordButton.classList.remove('disabled');
-                updateTriesLeft();
-                logToGoogleSheet(1, T2.innerText.trim());  // Log official recording content from T2
-                finalTranscript = '';  // Reset final transcript
-                clearTimeout(inactivityTimeout);
-            }
-        }
 
         function updateTriesLeft() {
             officialRecordingTries--;
@@ -238,65 +181,39 @@
             updateTriesLeftDisplay();
         }
 
-        function logToGoogleSheet(isOfficial, transcript) {
-            const timestamp = new Date().toISOString();
-            const duration = calculateDuration();  // Placeholder, implement duration calculation
+        function clearTranscriptions() {
+            transcription.innerText = '';
+            officialTranscription.innerText = '';
+        }
+
+        function handleRecordingStopped() {
+            isRecording = false;
+            isOfficialRecording = false;
+            recordButton.textContent = 'Start Trial Recording';
+            officialRecordButton.textContent = 'Start Official Recording';
+            officialRecordButton.classList.remove('disabled');
+            recordButton.classList.remove('disabled');
+
+            // Send transcription to Google Apps Script Web App
             const data = {
-                timestamp,
-                user,
-                exerciseId,
-                duration,
-                isOfficial,
-                transcript
+                timestamp: new Date().toISOString(),
+                user: 'testUser', // Replace with actual user info if available
+                exerciseId: 'exercise123', // Replace with actual exercise ID if available
+                duration: 0, // Add logic to calculate the duration
+                officialState: isOfficialRecording ? 'official' : 'trial',
+                transcription: isOfficialRecording ? officialTranscription.innerText : transcription.innerText
             };
 
-            fetch('https://script.google.com/macros/s/AKfycbyQC_QGHgBc1gGNQdZRIyXwDWGos__XU208RqwBHukndYm-rrsosqSYI3qsYJQAACmNxQ/exec', {
+            fetch('https://script.google.com/macros/s/AKfycbyRDqsbciRX6cHPNPSCpp2B0WLBgdR37iK11YKjw4toMVqN1kkRI4tuekA7RlXJSjhf-A/exec', { // Replace with your GAS Web App URL
                 method: 'POST',
-                mode: 'no-cors',
                 headers: {
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify(data)
             })
-            .then(response => {
-                console.log('Data logged to Google Sheet', response);
-            })
-            .catch(error => {
-                console.error('Error logging to Google Sheet', error);
-            });
-        }
-
-        function calculateDuration() {
-            // Implement your duration calculation logic here
-            return 0;  // Placeholder
-        }
-
-        function autoExpand(element) {
-            element.style.height = 'auto';
-            element.style.height = element.scrollHeight + 'px';
-        }
-
-        function resetInactivityTimeout() {
-            clearTimeout(inactivityTimeout);
-            inactivityTimeout = setTimeout(() => {
-                if (isRecording) {
-                    recognition.stop();
-                    isRecording = false;
-                    recordButton.textContent = 'Start Trial Recording';
-                    officialRecordButton.classList.remove('disabled');
-                    logToGoogleSheet(0, transcription.innerText.trim());  // Log trial recording
-                    finalTranscript = '';  // Reset final transcript
-                }
-                if (isOfficialRecording) {
-                    recognition.stop();
-                    isOfficialRecording = false;
-                    officialRecordButton.textContent = 'Start Official Recording';
-                    recordButton.classList.remove('disabled');
-                    updateTriesLeft();
-                    logToGoogleSheet(1, T2.innerText.trim());  // Log official recording content from T2
-                    finalTranscript = '';  // Reset final transcript
-                }
-            }, 30000); // 30 seconds of inactivity
+            .then(response => response.text())
+            .then(result => console.log(result))
+            .catch(error => console.error('Error:', error));
         }
     </script>
 </body>
