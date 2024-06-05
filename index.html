@@ -63,9 +63,6 @@
         let lastResetTime = parseInt(localStorage.getItem('lastResetTime')) || Date.now();
         const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
-        let startRecordingTime;
-        let endRecordingTime;
-
         function checkReset() {
             const currentTime = Date.now();
             if (currentTime - lastResetTime > ONE_DAY_MS) {
@@ -143,15 +140,13 @@
                 shouldRestartRecognition = false;
                 recognition.stop();
                 isRecording = false;
-                endRecordingTime = new Date().toISOString();
                 recordButton.textContent = 'Start Trial Recording';
                 officialRecordButton.classList.remove('disabled');
-                logToGoogleSheet(0, transcription.innerText, startRecordingTime, endRecordingTime);  // Log trial recording
+                logToGoogleSheet(0, transcription.innerText);  // Log trial recording
             } else {
                 shouldRestartRecognition = true;
                 recognition.start();
                 isRecording = true;
-                startRecordingTime = new Date().toISOString();
                 recordButton.textContent = 'Stop Trial Recording';
                 officialRecordButton.classList.add('disabled');
                 clearTimeout(clearTimeoutId);
@@ -164,17 +159,15 @@
                     shouldRestartRecognition = false;
                     recognition.stop();
                     isOfficialRecording = false;
-                    endRecordingTime = new Date().toISOString();
                     officialRecordButton.textContent = 'Start Official Recording';
                     recordButton.classList.remove('disabled');
                     updateTriesLeft();
-                    logToGoogleSheet(1, officialTranscription.innerText, startRecordingTime, endRecordingTime);  // Log official recording
+                    logToGoogleSheet(1, officialTranscription.innerText);  // Log official recording
                 } else {
                     if (officialRecordingTries > 0) {
                         shouldRestartRecognition = true;
                         recognition.start();
                         isOfficialRecording = true;
-                        startRecordingTime = new Date().toISOString();
                         officialRecordButton.textContent = 'Stop Official Recording';
                         recordButton.classList.add('disabled');
                         clearTimeout(clearTimeoutId);
@@ -189,17 +182,15 @@
                 recognition.stop();
                 if (isRecording) {
                     isRecording = false;
-                    endRecordingTime = new Date().toISOString();
                     recordButton.textContent = 'Start Trial Recording';
                     officialRecordButton.classList.remove('disabled');
-                    logToGoogleSheet(0, transcription.innerText, startRecordingTime, endRecordingTime);  // Log trial recording
+                    logToGoogleSheet(0, transcription.innerText);  // Log trial recording
                 } else if (isOfficialRecording) {
                     isOfficialRecording = false;
-                    endRecordingTime = new Date().toISOString();
                     officialRecordButton.textContent = 'Start Official Recording';
                     recordButton.classList.remove('disabled');
                     updateTriesLeft();
-                    logToGoogleSheet(1, officialTranscription.innerText, startRecordingTime, endRecordingTime);  // Log official recording
+                    logToGoogleSheet(1, officialTranscription.innerText);  // Log official recording
                 }
             }
         }
@@ -215,18 +206,19 @@
             officialTranscription.innerText = '';
         }
 
-        function logToGoogleSheet(isOfficial, transcript, startTime, stopTime) {
+        function logToGoogleSheet(isOfficial, transcript) {
+            const timestamp = new Date().toISOString();
+            const duration = calculateDuration();  // Placeholder, implement duration calculation
             const data = {
-                startRecordingTime: startTime,
-                endRecordingTime: stopTime,
+                timestamp,
                 user,
                 exerciseId,
-                duration: calculateDuration(),  // Duration in seconds
+                duration,
                 isOfficial,
                 transcript
             };
 
-            fetch('https://script.google.com/macros/s/AKfycbxcxjKCbrz4HMBaHu9tqR2d-uGKyKV4bRHYFhgMcdo-ZHoMvGfvFax5wXyw4mV5ejLGlg/exec', {
+            fetch('https://script.google.com/macros/s/AKfycbxIjQxkIUJxaF8Gi97EuiwiIsnxmZB4DemoPpWGrDRqf3e7D8ooHWB2-vFlHBL_DtG5Hg/exec', {
                 method: 'POST',
                 mode: 'no-cors',
                 headers: {
@@ -242,36 +234,10 @@
             });
         }
 
-        // Define variables to track recording start and end times
-        let recordingStartTime;
-        let recordingEndTime;
-
-        recognition.onstart = function() {
-            // Set recording start time when recording starts
-            recordingStartTime = Date.now();
-            // Other code remains the same...
-        };
-
-        recognition.onend = function() {
-            // Set recording end time when recording ends
-            recordingEndTime = Date.now();
-            // Other code remains the same...
-        };
-
         function calculateDuration() {
-            // Check if both start and end times are available
-            if (recordingStartTime && recordingEndTime) {
-                // Calculate duration in milliseconds
-                const durationMs = recordingEndTime - recordingStartTime;
-                // Convert milliseconds to seconds (assuming duration is in seconds)
-                const durationSec = durationMs / 1000;
-                return durationSec;
-            } else {
-                // If either start or end time is missing, return 0
-                return 0;
-            }
+            // Implement your duration calculation logic here
+            return 0;  // Placeholder
         }
-
     </script>
 </body>
 </html>
