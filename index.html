@@ -52,6 +52,9 @@
         let recognition;
         let clearTimeoutId;
         let shouldRestartRecognition = true;
+        let finalTranscript = '';
+
+        const GAS_WEB_APP_URL = 'YOUR_GAS_WEB_APP_URL'; // Replace with your GAS web app URL
 
         // Load tries from localStorage or initialize if not present
         let officialRecordingTries = parseInt(localStorage.getItem('officialRecordingTries')) || 5;
@@ -112,14 +115,15 @@
             recognition.onresult = function(event) {
                 clearTimeout(clearTimeoutId);
                 resetSilenceTimer();
-                let transcript = '';
+                let interimTranscript = '';
                 for (let i = event.resultIndex; i < event.results.length; ++i) {
-                    transcript += event.results[i][0].transcript;
+                    interimTranscript += event.results[i][0].transcript;
                 }
+                finalTranscript = interimTranscript;
                 if (isOfficialRecording) {
-                    officialTranscription.innerText = transcript;
+                    officialTranscription.innerText = interimTranscript;
                 } else {
-                    transcription.innerText = transcript;
+                    transcription.innerText = interimTranscript;
                 }
             };
 
@@ -134,6 +138,7 @@
                     clearTimeoutId = setTimeout(clearTranscriptions, 10000);
                     status.innerHTML = '';
                     officialStatus.innerHTML = '';
+                    sendTranscriptionData(finalTranscript, isOfficialRecording);
                 }
             };
         } else {
@@ -193,26 +198,31 @@
             officialRecordButton.textContent = 'Start Official Recording';
             officialRecordButton.classList.remove('disabled');
             recordButton.classList.remove('disabled');
+        }
 
-            // Send transcription to Google Apps Script Web App
+        function sendTranscriptionData(transcript, isOfficial) {
             const data = {
-                timestamp: new Date().toISOString(),
-                user: 'testUser', // Replace with actual user info if available
-                exerciseId: 'exercise123', // Replace with actual exercise ID if available
-                duration: 0, // Add logic to calculate the duration
-                officialState: isOfficialRecording ? 'official' : 'trial',
-                transcription: isOfficialRecording ? officialTranscription.innerText : transcription.innerText
+                user: 'User1', // Replace with actual user data
+                exerciseId: 'Exercise1', // Replace with actual exercise ID
+                duration: 0, // Replace with actual duration if available
+                officialState: isOfficial ? 'official' : 'trial',
+                transcription: transcript
             };
 
-            fetch('https://script.google.com/macros/s/AKfycby_ZHEH9dKiiuNhmtIgsRqopimPbLB8Bk8U9F9azpDrNLVjpGPtiNIJ5iVt2PG8D5rGmA/exec', {
+            fetch(GAS_WEB_APP_URL, {
                 method: 'POST',
+                mode: 'no-cors',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                mode: 'no-cors', // This enables no-cors mode
                 body: JSON.stringify(data)
             })
-            .catch(error => console.error('Error:', error));
+            .then(response => {
+                console.log('Data sent to Google Sheets');
+            })
+            .catch(error => {
+                console.error('Error sending data to Google Sheets:', error);
+            });
         }
     </script>
 </body>
