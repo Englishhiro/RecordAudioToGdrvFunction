@@ -204,15 +204,14 @@
                 transcription: isOfficialRecording ? officialTranscription.innerText : transcription.innerText
             };
 
-            fetch('https://script.google.com/macros/s/AKfycbyRDqsbciRX6cHPNPSCpp2B0WLBgdR37iK11YKjw4toMVqN1kkRI4tuekA7RlXJSjhf-A/exec', { // Replace with your GAS Web App URL
+            fetch('https://script.google.com/macros/s/AKfycby_ZHEH9dKiiuNhmtIgsRqopimPbLB8Bk8U9F9azpDrNLVjpGPtiNIJ5iVt2PG8D5rGmA/exec', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
+                mode: 'no-cors', // This enables no-cors mode
                 body: JSON.stringify(data)
             })
-            .then(response => response.text())
-            .then(result => console.log(result))
             .catch(error => console.error('Error:', error));
         }
     </script>
