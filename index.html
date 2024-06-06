@@ -54,6 +54,9 @@
         let inactivityTimeoutId;
         let shouldRestartRecognition = true;
 
+        // Duration tracking variables
+        let startTime;
+
         // Replace with actual user and exercise ID
         const user = "test_user";
         const exerciseId = "exercise_1";
@@ -93,6 +96,7 @@
             recognition.lang = 'en-US';
 
             recognition.onstart = function() {
+                startTime = new Date().getTime();
                 clearTimeout(clearTimeoutId);
                 clearTimeout(inactivityTimeoutId);
                 if (isOfficialRecording) {
@@ -208,7 +212,7 @@
 
         function logToGoogleSheet(isOfficial, transcript) {
             const timestamp = new Date().toISOString();
-            const duration = calculateDuration();  // Placeholder, implement duration calculation
+            const duration = calculateDuration();  // Calculate duration
             const data = {
                 timestamp,
                 user,
@@ -218,7 +222,7 @@
                 transcript
             };
 
-            fetch('https://script.google.com/macros/s/AKfycbxIjQxkIUJxaF8Gi97EuiwiIsnxmZB4DemoPpWGrDRqf3e7D8ooHWB2-vFlHBL_DtG5Hg/exec', {
+            fetch('https://script.google.com/macros/s/AKfycbwFAzJmVCqtd-HOHmu4J7gqxWZnyzrY5pAYlRMu8A-kvGIcEhOkeYygbYo1pEunoisC/exec', {
                 method: 'POST',
                 mode: 'no-cors',
                 headers: {
@@ -235,8 +239,12 @@
         }
 
         function calculateDuration() {
-            // Implement your duration calculation logic here
-            return 0;  // Placeholder
+            if (startTime) {
+                const duration = (new Date().getTime() - startTime) / 1000;  // Duration in seconds
+                startTime = null;  // Reset start time
+                return duration;
+            }
+            return 0;
         }
     </script>
 </body>
