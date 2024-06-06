@@ -75,6 +75,7 @@
         let finalTranscript = '';
         let interimTranscript = '';
         let inactivityTimeout;
+        let startTime;
 
         // Replace with actual user and exercise ID
         const user = "test_user";
@@ -121,6 +122,7 @@
                     status.innerHTML = 'Recording... <span class="microphone-icon">🎤</span>';
                 }
                 resetInactivityTimeout();
+                startTime = new Date().getTime();
             };
 
             recognition.onresult = function(event) {
@@ -250,30 +252,20 @@
                 transcript
             };
 
-            fetch('https://script.google.com/macros/s/AKfycbyQC_QGHgBc1gGNQdZRIyXwDWGos__XU208RqwBHukndYm-rrsosqSYI3qsYJQAACmNxQ/exec', {
+            fetch('https://script.google.com/macros/s/AKfycbyQC_QGHgBc1gGNQdZRIy5uOm8Kpgh7uKTGjFJ6GG6eBk8OSQ9JTuqR9BzNLk8C1IQr/exec', {
                 method: 'POST',
                 mode: 'no-cors',
                 headers: {
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify(data)
-            })
-            .then(response => {
-                console.log('Data logged to Google Sheet', response);
-            })
-            .catch(error => {
-                console.error('Error logging to Google Sheet', error);
             });
         }
 
         function calculateDuration() {
-            // Implement your duration calculation logic here
-            return 0;  // Placeholder
-        }
-
-        function autoExpand(element) {
-            element.style.height = 'auto';
-            element.style.height = element.scrollHeight + 'px';
+            const endTime = new Date().getTime();
+            const durationInSeconds = (endTime - startTime) / 1000;
+            return durationInSeconds.toFixed(2);  // Returns duration in seconds with two decimal places
         }
 
         function resetInactivityTimeout() {
@@ -285,7 +277,6 @@
                     recordButton.textContent = 'Start Trial Recording';
                     officialRecordButton.classList.remove('disabled');
                     logToGoogleSheet(0, transcription.innerText.trim());  // Log trial recording
-                    finalTranscript = '';  // Reset final transcript
                 }
                 if (isOfficialRecording) {
                     recognition.stop();
@@ -294,9 +285,13 @@
                     recordButton.classList.remove('disabled');
                     updateTriesLeft();
                     logToGoogleSheet(1, T2.innerText.trim());  // Log official recording content from T2
-                    finalTranscript = '';  // Reset final transcript
                 }
-            }, 30000); // 30 seconds of inactivity
+            }, 5000);  // Adjust inactivity timeout duration as needed
+        }
+
+        function autoExpand(element) {
+            element.style.height = 'auto';
+            element.style.height = element.scrollHeight + 'px';
         }
     </script>
 </body>
